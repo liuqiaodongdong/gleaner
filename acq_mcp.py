@@ -1,6 +1,6 @@
 """物尽其用 Gleaner —— 机构学术资源采集 MCP，跑在主力机(本地 stdio)，CC 直连。
 
-Authors: liuqiaodongdong (https://github.com/liuqiaodongdong) · Grok (xAI)
+Authors: liuqiaodongdong and Grok (https://github.com/liuqiaodongdong · xAI)
 
 三条采集线（全部主力机本地执行，无需备用机 SSH）：
   - CNKI 中文线   cnki_collect(全文)/cnki_list(题录)  —— 本地经代理(机构权限)+超级鹰过码 → PDF

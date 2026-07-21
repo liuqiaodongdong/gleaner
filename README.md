@@ -2,13 +2,7 @@
 
 多源学术文献采集 MCP（stdio）。把「检索 → 下载全文 → 归一化元数据」交给 Claude Code 等 Agent 一键完成。
 
-**作者 / Authors**
-
-| | |
-|--|--|
-| **[liuqiaodongdong](https://github.com/liuqiaodongdong)** | 项目作者与维护者 |
-| **Grok (xAI)** | 协助架构整理、部署引导与文档 |
-
+**Authors:** [liuqiaodongdong](https://github.com/liuqiaodongdong) and [Grok](https://x.ai)  
 仓库：https://github.com/liuqiaodongdong/gleaner-mcp
 
 | 来源 | 工具 | 说明 | 产物 |

@@ -2,6 +2,15 @@
 
 多源学术文献采集 MCP（stdio）。把「检索 → 下载全文 → 归一化元数据」交给 Claude Code 等 Agent 一键完成。
 
+**作者 / Authors**
+
+| | |
+|--|--|
+| **[liuqiaodongdong](https://github.com/liuqiaodongdong)** | 项目作者与维护者 |
+| **Grok (xAI)** | 协助架构整理、部署引导与文档 |
+
+仓库：https://github.com/liuqiaodongdong/gleaner-mcp
+
 | 来源 | 工具 | 说明 | 产物 |
 |------|------|------|------|
 | **中国知网 CNKI** | `cnki_collect` / `cnki_list` | 关键词或专业检索式；全文需机构权限 | PDF / CAJ |
@@ -193,4 +202,4 @@ AGENTS.md            # 给 Agent 的使用约定
 - 验证码打码、第三方镜像等能力由你自行承担合规风险。  
 - 本项目按「现状」提供，作者不对滥用或账号封禁负责。
 
-Issues / PR 欢迎。
+Issues / PR 欢迎：https://github.com/liuqiaodongdong/gleaner-mcp

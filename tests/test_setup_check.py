@@ -34,6 +34,11 @@ def test_check_setup_shape(monkeypatch, tmp_path):
     assert "chaojiying" in ids
     assert "elsevier_key" in ids
     assert any("Agent" in x for x in s["next_steps_for_user"])
+    els_b = next(b for b in s["blockers"] if b["id"] == "elsevier_key")
+    assert "dev.elsevier.com" in els_b["url"]
+    assert els_b.get("apply_steps")
+    assert any("Create API Key" in step for step in els_b["apply_steps"])
+    assert s["lines"]["elsevier"]["api_key"].get("apply_steps")
     # 不泄露密钥字段
     blob = json.dumps(s)
     assert "utuf" not in blob

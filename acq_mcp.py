@@ -244,9 +244,11 @@ def els_collect(query: str, num: int = 25, tier: str = "1+2", year_from: str = "
                 per_journal: int = 25, out_name: str = ""):
     """检索学校订阅的 Elsevier/ScienceDirect【白名单经济/管理刊】并取全文(转MD)。
 
-    主力机本地执行：Elsevier 官方 API + API key（ELSEVIER_API_KEY 或 acq/data/.elsevier_key），
-    无浏览器/无登录/无 MinerU。只检索白名单 (acq/data/intl_journal_tiers.json，96 刊) 中所选 tier 的刊。
-    缺 key 时返回 setup_incomplete 与申请引导；首次使用请先 setup_status。
+    主力机本地执行：Elsevier **官方** Developer API + API key
+    （ELSEVIER_API_KEY 或 acq/data/.elsevier_key）。申请步骤见 docs/ELSEVIER_API.md
+    （https://dev.elsevier.com/apikey/manage），禁止第三方 Key/网页爬取。
+    无浏览器/无登录。只检索白名单 (acq/data/intl_journal_tiers.json) 中所选 tier 的刊。
+    缺 key 时返回 setup_incomplete 与 apply_steps；首次请先 setup_status。
 
     Args:
         query: SD 专业检索式(qs 布尔)，如 '("digital economy" OR digitalization) AND (innovation OR patent)'。

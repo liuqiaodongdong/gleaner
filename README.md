@@ -38,10 +38,22 @@ pip install -r requirements.txt
 | 用途 | 是否需要 | 申请 |
 |------|----------|------|
 | 知网全文 | 机构网络/代理 + [超级鹰](https://www.chaojiying.com/)（验证码 9602） | 代理可用校园网/VPN；超级鹰需积分 |
-| Elsevier | [Elsevier API Key](https://dev.elsevier.com/) | 建议学校邮箱注册 |
+| Elsevier | **官方** API Key（免费学术额度） | 见下方；完整版 [docs/ELSEVIER_API.md](docs/ELSEVIER_API.md) |
 | 国际 OA 线 | 通常不需要 | — |
 
 首次使用可先调 MCP 工具 **`setup_status`**，它会检查缺什么并给出配置步骤。
+
+#### Elsevier 官方 API Key（`els_collect` 必需）
+
+本项目**只使用** [Elsevier Developer Portal](https://dev.elsevier.com/) 官方 API，**不要**使用第三方 Key、破解或网页爬取代替。
+
+1. 用**学校/机构邮箱**注册/登录：https://account.elsevier.com/  
+2. 打开 https://dev.elsevier.com/ → [Create / Manage API Key](https://dev.elsevier.com/apikey/manage)  
+3. **Create API Key**（Label 如 `gleaner-local`；Website 本地可用 `http://localhost`）  
+4. 将 Key 写入 MCP 的 `ELSEVIER_API_KEY`，或单行写入 `acq/data/.elsevier_key`  
+5. 调 `setup_status` 确认 `elsevier.ready`
+
+说明：Key 负责 API 鉴权与配额；**订阅全文**仍依赖你的机构权益。配额见 [api_key_settings](https://dev.elsevier.com/api_key_settings.html)。逐步图与 Agent 话术见 **[docs/ELSEVIER_API.md](docs/ELSEVIER_API.md)**。
 
 ### 3. 接入 Claude Code（或其他 MCP 客户端）
 
@@ -167,10 +179,11 @@ AGENTS.md            # 给 Agent 的使用约定
 | 现象 | 处理 |
 |------|------|
 | `setup_incomplete` / 缺密钥 | 调 `setup_status`，按返回步骤配置 |
+| Elsevier Key 缺失 | **只**按 [docs/ELSEVIER_API.md](docs/ELSEVIER_API.md) 在 dev.elsevier.com 申请 |
 | 知网无权限 / 打不开 | 检查是否在机构网/VPN，或 `ACQ_PROXY` 端口是否与本机代理软件一致 |
 | 超级鹰相关报错 | 检查 `CJY_USER` / `CJY_PASS` / `CJY_SOFTID` 与积分 |
 | MCP 里看不到 gleaner | 路径是否正确、是否重启客户端 |
-| Elsevier 0 篇 | 检索式是否过窄、key 是否有订阅全文权限 |
+| Elsevier 0 篇 | 检索式是否过窄；机构是否订阅该刊全文（Key  alone 不等于全库 PDF） |
 
 ---
 

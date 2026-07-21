@@ -94,6 +94,30 @@ def _chaojiying() -> dict:
     }
 
 
+# Agent 引导文案：只认官方 Developer Portal，禁止误导向第三方/爬站
+ELSEVIER_APPLY = {
+    "portal": "https://dev.elsevier.com/",
+    "create_key": "https://dev.elsevier.com/apikey/manage",
+    "quotas": "https://dev.elsevier.com/api_key_settings.html",
+    "account": "https://account.elsevier.com/",
+    "guide_in_repo": "docs/ELSEVIER_API.md",
+    "steps": [
+        "用学校/机构邮箱注册或登录 Elsevier 账号：https://account.elsevier.com/",
+        "打开官方 Developer Portal：https://dev.elsevier.com/",
+        "进入 My API Key / Create API Key：https://dev.elsevier.com/apikey/manage",
+        "填写 Label（如 gleaner-local）；Website URL 本地可用 http://localhost（以页面校验为准）",
+        "复制生成的 API Key，配置到 MCP env 的 ELSEVIER_API_KEY，或单行写入 acq/data/.elsevier_key",
+        "再调用 setup_status，确认 lines.elsevier.ready=true",
+    ],
+    "agent_rules": [
+        "只引导用户申请 Elsevier 官方 API Key（dev.elsevier.com），不要推荐第三方 Key/镜像/破解",
+        "不要让用户用浏览器爬 science direct 网页代替本项目的官方 API",
+        "API Key 主要用于鉴权与配额；订阅全文仍依赖机构权益，未订刊可能下不到全文",
+        "不要回显完整 API Key；不要让用户把 Key 提交到 git",
+    ],
+}
+
+
 def _elsevier() -> dict:
     env = (os.environ.get("ELSEVIER_API_KEY") or "").strip()
     file_ok = False
@@ -108,16 +132,23 @@ def _elsevier() -> dict:
             "status": "configured",
             "via": "env" if env else "file",
             "hint": "Elsevier API key 已配置（不回显密钥内容）",
+            "guide": str(ROOT / "docs" / "ELSEVIER_API.md"),
         }
     return {
         "ok": False,
         "status": "missing",
-        "apply_url": "https://dev.elsevier.com/",
+        "apply_url": ELSEVIER_APPLY["create_key"],
+        "portal": ELSEVIER_APPLY["portal"],
         "key_file": str(ELS_KEY_FILE),
+        "guide": str(ROOT / "docs" / "ELSEVIER_API.md"),
+        "apply_steps": ELSEVIER_APPLY["steps"],
+        "agent_rules": ELSEVIER_APPLY["agent_rules"],
         "hint": (
-            "请到 https://dev.elsevier.com/ 用学校邮箱注册并 Create API Key，"
-            "然后二选一：① 环境变量 ELSEVIER_API_KEY ② 单行写入 acq/data/.elsevier_key"
-            "（该文件已 gitignore，勿提交）。"
+            "缺少 Elsevier 官方 API Key。"
+            "请严格按官方流程：https://dev.elsevier.com/ → "
+            "https://dev.elsevier.com/apikey/manage 创建 Key；"
+            "建议学校邮箱；配到 ELSEVIER_API_KEY 或 acq/data/.elsevier_key。"
+            "完整步骤见 docs/ELSEVIER_API.md。禁止引导第三方 Key 或网页爬取。"
         ),
     }
 
@@ -204,9 +235,16 @@ def check_setup() -> dict:
         blockers.append({
             "id": "elsevier_key",
             "severity": "elsevier",
-            "title": "申请并配置 Elsevier API key",
-            "url": "https://dev.elsevier.com/",
-            "action": "Create API Key → ELSEVIER_API_KEY 或写入 acq/data/.elsevier_key",
+            "title": "申请 Elsevier 官方 API Key（仅 dev.elsevier.com）",
+            "url": ELSEVIER_APPLY["create_key"],
+            "portal": ELSEVIER_APPLY["portal"],
+            "guide": "docs/ELSEVIER_API.md",
+            "apply_steps": ELSEVIER_APPLY["steps"],
+            "agent_rules": ELSEVIER_APPLY["agent_rules"],
+            "action": (
+                "学校邮箱登录 https://dev.elsevier.com/apikey/manage → Create API Key → "
+                "填 ELSEVIER_API_KEY 或 acq/data/.elsevier_key；详见 docs/ELSEVIER_API.md"
+            ),
         })
 
     ready_any = cnki_collect_ready or lines["elsevier"]["ready"] or lines["intl"]["ready"]

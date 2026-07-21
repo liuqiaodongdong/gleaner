@@ -190,10 +190,16 @@ AGENTS.md            # 给 Agent 的使用约定
 
 ---
 
-## 许可证与声明
+## License
+
+[MIT](LICENSE) © [liuqiaodongdong](https://github.com/liuqiaodongdong)
+
+本仓库代码按 MIT 许可开源：可自由使用、修改、分发（含闭源商用），保留版权与许可声明即可。
+
+### 使用声明（与许可证独立）
 
 - 请遵守知网、Elsevier 等平台服务条款，仅在合法授权（机构订阅等）范围内使用。  
-- 验证码打码、第三方镜像等能力由你自行承担合规风险。  
-- 本项目按「现状」提供，作者不对滥用或账号封禁负责。
+- 验证码打码、第三方镜像等能力由你自行承担合规风险；**MIT 许可代码 ≠ 授权你违反第三方 ToS 或版权法**。  
+- 本软件按「现状」提供，作者不对滥用、封禁或数据合规问题负责。
 
 Issues / PR 欢迎：https://github.com/liuqiaodongdong/gleaner-mcp

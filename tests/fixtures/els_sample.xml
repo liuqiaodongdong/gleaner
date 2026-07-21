@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<full-text-retrieval-response xmlns="http://www.elsevier.com/xml/svapi/article/dtd"
+  xmlns:dc="http://purl.org/dc/elements/1.1/"
+  xmlns:ce="http://www.elsevier.com/xml/common/dtd"
+  xmlns:mml="http://www.w3.org/1998/Math/MathML">
+  <coredata>
+    <dc:title>A Test Article on Digital Economy</dc:title>
+    <dc:description>This abstract explains the test. It has two sentences.</dc:description>
+  </coredata>
+  <originalText>
+    <ce:sections>
+      <ce:section>
+        <ce:section-title>Introduction</ce:section-title>
+        <ce:para>First body paragraph about innovation costing $10,000 to $20,000.</ce:para>
+        <ce:para>Second body paragraph.</ce:para>
+      </ce:section>
+      <ce:section>
+        <ce:section-title>Methods</ce:section-title>
+        <ce:para>We set initial consumption <mml:math><mml:mrow><mml:msub><mml:mi>c</mml:mi><mml:mn>0</mml:mn></mml:msub></mml:mrow></mml:math> and solve the model.</ce:para>
+        <ce:display>
+          <ce:formula id="e1">
+            <ce:label>(1)</ce:label>
+            <mml:math>
+              <mml:mrow>
+                <mml:mfrac><mml:mrow><mml:mi>dy</mml:mi></mml:mrow><mml:mrow><mml:mi>dx</mml:mi></mml:mrow></mml:mfrac>
+                <mml:mo>=</mml:mo>
+                <mml:munderover><mml:mo>∑</mml:mo><mml:mrow><mml:mi>i</mml:mi><mml:mo>=</mml:mo><mml:mn>1</mml:mn></mml:mrow><mml:mrow><mml:mi>n</mml:mi></mml:mrow></mml:munderover>
+                <mml:msup><mml:mi>x</mml:mi><mml:mn>2</mml:mn></mml:msup>
+                <mml:mo>+</mml:mo>
+                <mml:mi>β</mml:mi>
+              </mml:mrow>
+            </mml:math>
+          </ce:formula>
+        </ce:display>
+        <ce:section>
+          <ce:section-title>Data</ce:section-title>
+          <ce:para>Firm-level panel data.</ce:para>
+        </ce:section>
+      </ce:section>
+    </ce:sections>
+    <ce:table>
+      <ce:label>Table 1</ce:label>
+      <ce:caption><ce:simple-para>Summary statistics.</ce:simple-para></ce:caption>
+      <tgroup cols="2">
+        <tbody>
+          <row><entry>Variable</entry><entry>Mean</entry></row>
+          <row><entry>GDP growth</entry><entry>3.14</entry></row>
+        </tbody>
+      </tgroup>
+    </ce:table>
+    <ce:figure>
+      <ce:label>Fig. 1</ce:label>
+      <ce:caption><ce:simple-para>Trend of demand over time.</ce:simple-para></ce:caption>
+    </ce:figure>
+  </originalText>
+</full-text-retrieval-response>

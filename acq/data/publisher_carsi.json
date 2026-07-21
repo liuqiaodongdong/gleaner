@@ -1,0 +1,28 @@
+{
+  "sciencedirect": {
+    "domains": ["sciencedirect.com", "elsevier.com"],
+    "pdf_pattern": "",
+    "needs_response_capture": true,
+    "_note": "pdfft URL 需要 PII 而非 DOI，无法用 {doi} 拼接；依赖 response 监听或 click 兜底抓 PDF"
+  },
+  "springer": {
+    "domains": ["link.springer.com", "springer.com"],
+    "pdf_pattern": "https://link.springer.com/content/pdf/{doi}.pdf",
+    "needs_response_capture": false
+  },
+  "emerald": {
+    "domains": ["emerald.com"],
+    "pdf_pattern": "https://www.emerald.com/insight/content/doi/{doi}/full/pdf",
+    "needs_response_capture": false
+  },
+  "ebsco": {
+    "domains": ["ebscohost.com", "ebsco.com"],
+    "pdf_pattern": "",
+    "needs_response_capture": true
+  },
+  "proquest": {
+    "domains": ["proquest.com"],
+    "pdf_pattern": "",
+    "needs_response_capture": true
+  }
+}

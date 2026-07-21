@@ -1,0 +1,1230 @@
+{
+ "meta": {
+  "source": "总体期刊目录.xlsx 2024",
+  "filter": "Elsevier ∩ ASJC(14/20)",
+  "count": 96
+ },
+ "tier1": [
+  {
+   "name": "Journal of Accounting and Economics",
+   "issn": "0165-4101",
+   "level": "A+++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "2003",
+    "1402"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Econometrics",
+   "issn": "0304-4076",
+   "level": "A+++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "2604"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Financial Economics",
+   "issn": "0304-405X",
+   "level": "A+++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "1408",
+    "2003",
+    "1402"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Monetary Economics",
+   "issn": "0304-3932",
+   "level": "A+++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "2003"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Research Policy",
+   "issn": "0048-7333",
+   "level": "A+++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1405",
+    "1408",
+    "1803"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Accounting, Organizations and Society",
+   "issn": "0361-3682",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1402",
+    "1802",
+    "3312",
+    "1407"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Annals of Tourism Research",
+   "issn": "0160-7383",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1409",
+    "1406",
+    "1403",
+    "3303"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Decision Support Systems",
+   "issn": "0167-9236",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1710",
+    "1201",
+    "1802",
+    "3204",
+    "1404"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "International Journal of Forecasting",
+   "issn": "0169-2070",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1403",
+    "2613"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "International Journal of Production Economics",
+   "issn": "0925-5273",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "1803",
+    "2209",
+    "1400"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "International Journal of Research in Marketing",
+   "issn": "0167-8116",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1406"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Banking and Finance",
+   "issn": "0378-4266",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Business Research",
+   "issn": "0148-2963",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "1403",
+    "1405",
+    "1407",
+    "1408",
+    "1406"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Business Venturing",
+   "issn": "0883-9026",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "1405",
+    "1403"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Corporate Finance",
+   "issn": "0929-1199",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1403",
+    "1408",
+    "2003",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Development Economics",
+   "issn": "0304-3878",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "3303"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Economic Behavior and Organization",
+   "issn": "0167-2681",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "1407"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of International Economics",
+   "issn": "0022-1996",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Public Economics",
+   "issn": "0047-2727",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Retailing",
+   "issn": "0022-4359",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1406"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of World Business",
+   "issn": "1090-9516",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "2003",
+    "1406",
+    "1403"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Leadership Quarterly",
+   "issn": "1048-9843",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "1403",
+    "1407",
+    "3202",
+    "3312"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Omega (United Kingdom)",
+   "issn": "0305-0483",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1408",
+    "1803",
+    "1802"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Technovation",
+   "issn": "0166-4972",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1405",
+    "2200"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Tourism Management",
+   "issn": "0261-5177",
+   "level": "A++类期刊",
+   "tier": 1,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1408",
+    "1409",
+    "3303",
+    "3313"
+   ],
+   "openaccess": "0"
+  }
+ ],
+ "tier2": [
+  {
+   "name": "Cities",
+   "issn": "0264-2751",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1409",
+    "3303",
+    "3312",
+    "3322"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Economic Modelling",
+   "issn": "0264-9993",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Economic Systems",
+   "issn": "0939-3625",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Economics Letters",
+   "issn": "0165-1765",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Energy Economics",
+   "issn": "0140-9883",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "2100"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "European Economic Review",
+   "issn": "0014-2921",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Finance Research Letters",
+   "issn": "1544-6123",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "2003"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Human Resource Management Review",
+   "issn": "1053-4822",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "3202",
+    "1407"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Industrial Marketing Management",
+   "issn": "0019-8501",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "1406"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Information and Management",
+   "issn": "0378-7206",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1710",
+    "1802",
+    "1404"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Information and Organization",
+   "issn": "1471-7727",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1407",
+    "1404",
+    "3309",
+    "1405",
+    "1710"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Insurance: Mathematics and Economics",
+   "issn": "0167-6687",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2613",
+    "2002",
+    "1804"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "International Business Review",
+   "issn": "0969-5931",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1408",
+    "2003",
+    "1406",
+    "1403"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "International Journal of Hospitality Management",
+   "issn": "0278-4319",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1409",
+    "1408"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "International Journal of Industrial Organization",
+   "issn": "0167-7187",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "2002",
+    "1410",
+    "1408",
+    "2202",
+    "2209"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "International Review of Financial Analysis",
+   "issn": "1057-5219",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "2002",
+    "2003"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Accounting and Public Policy",
+   "issn": "0278-4254",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "1402",
+    "3312"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Cleaner Production",
+   "issn": "0959-6526",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "2209",
+    "2105",
+    "2300",
+    "1408"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Commodity Markets",
+   "issn": "2405-8513",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "2003"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Economic Dynamics and Control",
+   "issn": "0165-1889",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2604",
+    "2002",
+    "2606"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Empirical Finance",
+   "issn": "0927-5398",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "2003"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Financial Markets",
+   "issn": "1386-4181",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Financial Stability",
+   "issn": "1572-3089",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "2000"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Innovation and Knowledge",
+   "issn": "2530-7614",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1406",
+    "1403",
+    "2002",
+    "1405"
+   ],
+   "openaccess": "1"
+  },
+  {
+   "name": "Journal of International Accounting, Auditing and Taxation",
+   "issn": "1061-9518",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "1402"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of International Financial Markets, Institutions and Money",
+   "issn": "1042-4431",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of International Management",
+   "issn": "1075-4253",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "1403",
+    "2003",
+    "1408"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of International Money and Finance",
+   "issn": "0261-5606",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Mathematical Economics",
+   "issn": "0304-4068",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "2604"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Purchasing and Supply Management",
+   "issn": "1478-4092",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1408",
+    "1406"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Strategic Information Systems",
+   "issn": "0963-8687",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1710",
+    "1404",
+    "1802"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Labour Economics",
+   "issn": "0927-5371",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1407",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Long Range Planning",
+   "issn": "0024-6301",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "3305",
+    "1408",
+    "2003"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Marine Policy",
+   "issn": "0308-597X",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "2300",
+    "1104",
+    "2308",
+    "3308",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Organizational Dynamics",
+   "issn": "0090-2616",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "3312",
+    "1407",
+    "3202"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Regional Science and Urban Economics",
+   "issn": "0166-0462",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "3322"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Resources Policy",
+   "issn": "0301-4207",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "3308",
+    "2308",
+    "3312",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Resources, Conservation and Recycling",
+   "issn": "0921-3449",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "2311"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Socio-Economic Planning Sciences",
+   "issn": "0038-0121",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "3305",
+    "1803",
+    "2002",
+    "1804",
+    "1408"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Structural Change and Economic Dynamics",
+   "issn": "0954-349X",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Technological Forecasting and Social Change",
+   "issn": "0040-1625",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "1403",
+    "1405",
+    "3202"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Transportation Research Part E: Logistics and Transportation Review",
+   "issn": "1366-5545",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1403",
+    "3313",
+    "2205"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "World Development",
+   "issn": "0305-750X",
+   "level": "A+类期刊",
+   "tier": 2,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "3312",
+    "3303",
+    "3305"
+   ],
+   "openaccess": "0"
+  }
+ ],
+ "tier3": [
+  {
+   "name": "Economic Analysis and Policy",
+   "issn": "0313-5926",
+   "level": "ABS一星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Asian Economics",
+   "issn": "1049-0078",
+   "level": "ABS一星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "2003"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Destination Marketing and Management",
+   "issn": "2212-571X",
+   "level": "ABS一星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1406",
+    "1408",
+    "1403",
+    "1409"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Hospitality and Tourism Management",
+   "issn": "1447-6770",
+   "level": "ABS一星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1409"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Hospitality, Leisure, Sport and Tourism Education",
+   "issn": "1473-8376",
+   "level": "ABS一星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "3304",
+    "1409"
+   ],
+   "openaccess": null
+  },
+  {
+   "name": "Telecommunications Policy",
+   "issn": "0308-5961",
+   "level": "ABS一星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "3315",
+    "3309",
+    "1404",
+    "2308",
+    "2002",
+    "1710"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Transnational Corporations Review",
+   "issn": "1925-2099",
+   "level": "ABS一星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "3303",
+    "1403",
+    "2003"
+   ],
+   "openaccess": "1"
+  },
+  {
+   "name": "China Economic Review",
+   "issn": "1043-951X",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "2003"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Electronic Commerce Research and Applications",
+   "issn": "1567-4223",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1405",
+    "1706",
+    "1705",
+    "1406"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Emerging Markets Review",
+   "issn": "1566-0141",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "1403"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "European Management Journal",
+   "issn": "0263-2373",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1408"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Global Finance Journal",
+   "issn": "1044-0283",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "International Journal of Information Management",
+   "issn": "0268-4012",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1404",
+    "1702",
+    "1705",
+    "1710",
+    "1802",
+    "1406",
+    "3309"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "International Review of Economics and Finance",
+   "issn": "1059-0560",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "2002",
+    "2003"
+   ],
+   "openaccess": "1"
+  },
+  {
+   "name": "Journal of Accounting Education",
+   "issn": "0748-5751",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "3304",
+    "1402"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Behavioral and Experimental Economics",
+   "issn": "2214-8043",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "2002",
+    "3202",
+    "3300"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Business Venturing Insights",
+   "issn": "2352-6734",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "1403",
+    "1405"
+   ],
+   "openaccess": null
+  },
+  {
+   "name": "Journal of Contemporary Accounting and Economics",
+   "issn": "1815-5669",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1402"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Economics and Business",
+   "issn": "0148-6195",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "1400",
+    "2003",
+    "2002"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Family Business Strategy",
+   "issn": "1877-8585",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "2002",
+    "1408"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of High Technology Management Research",
+   "issn": "1047-8310",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1405",
+    "1706",
+    "1802",
+    "1406",
+    "1408"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Journal of Retailing and Consumer Services",
+   "issn": "0969-6989",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1406"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "North American Journal of Economics and Finance",
+   "issn": "1062-9408",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Inc.",
+   "asjc": [
+    "2002",
+    "2003"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Quarterly Review of Economics and Finance",
+   "issn": "1062-9769",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2002",
+    "2003"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Research in Accounting Regulation",
+   "issn": "1052-0457",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1402",
+    "2003",
+    "3312"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Research in International Business and Finance",
+   "issn": "0275-5319",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "2003",
+    "1401"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Scandinavian Journal of Management",
+   "issn": "1873-3387",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier Ltd",
+   "asjc": [
+    "1408",
+    "3202"
+   ],
+   "openaccess": "0"
+  },
+  {
+   "name": "Tourism Management Perspectives",
+   "issn": "2211-9736",
+   "level": "ABS二星期刊",
+   "tier": 3,
+   "publisher": "Elsevier B.V.",
+   "asjc": [
+    "1409"
+   ],
+   "openaccess": "0"
+  }
+ ]
+}

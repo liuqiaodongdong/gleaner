@@ -1,0 +1,43 @@
+# --- 机密 / 本机凭证（禁止上传）---
+cookies.json
+*.cookie
+acq/cookies/
+.elsevier_key
+acq/data/.elsevier_key
+.env
+.env.*
+!.env.example
+
+# --- 本机 MCP 绝对路径配置（用 .mcp.json.example 作模板）---
+.mcp.json
+
+# --- 运行产物 / 运行时状态 ---
+corpus/
+output/
+out_intl*/
+spare-setup/
+acq/guard_state/
+*.tmp
+batch_params*.json
+mcp_params.json
+intl_params*.json
+*_params.json
+!tests/**/*.json
+
+# --- 日志 / 调试 ---
+*.log
+debug_*.png
+debug_*.jpg
+_recv_*.jpg
+
+# --- Python / 工具缓存 ---
+__pycache__/
+*.pyc
+.pytest_cache/
+.superpowers/
+.codex/
+
+# --- 系统杂项 ---
+.DS_Store
+Thumbs.db
+desktop.ini

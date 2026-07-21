@@ -59,7 +59,7 @@ pip install -r requirements.txt
         "CJY_USER": "chaojiying_user",
         "CJY_PASS": "chaojiying_pass",
         "CJY_SOFTID": "your_softid",
-        "ACQ_PROXY": "http://127.0.0.1:10808"
+        "ACQ_PROXY": "http://127.0.0.1:PORT"
       }
     }
   }
@@ -67,8 +67,10 @@ pip install -r requirements.txt
 ```
 
 - 将 `command` / `args` 改成你的本机绝对路径  
+- **`ACQ_PROXY` 按你本机代理软件填写**（Clash / V2 等端口各不相同，常见如 `7890`、`7897`、`10808`……以你客户端「HTTP 代理」端口为准）。也可不写，程序会尝试读取 **Windows 系统代理**  
+- 若电脑已在校园网 / 机构 VPN 内、浏览器能直接下知网，通常**不必**再设 `ACQ_PROXY`  
 - 密钥放在 `env` 里即可；Elsevier 也可写成文件 `acq/data/.elsevier_key`（单行）  
-- 字段说明见 [`.mcp.json.example`](.mcp.json.example)、[`.env.example`](.env.example)  
+- 模板见 [`.mcp.json.example`](.mcp.json.example)、[`.env.example`](.env.example)  
 - 重启客户端后，`/mcp` 应能看到 `gleaner`
 
 ### 4. （可选）知网登录缓存
@@ -165,7 +167,7 @@ AGENTS.md            # 给 Agent 的使用约定
 | 现象 | 处理 |
 |------|------|
 | `setup_incomplete` / 缺密钥 | 调 `setup_status`，按返回步骤配置 |
-| 知网无权限 / 打不开 | 检查 `ACQ_PROXY` 或系统代理是否指向机构网络 |
+| 知网无权限 / 打不开 | 检查是否在机构网/VPN，或 `ACQ_PROXY` 端口是否与本机代理软件一致 |
 | 超级鹰相关报错 | 检查 `CJY_USER` / `CJY_PASS` / `CJY_SOFTID` 与积分 |
 | MCP 里看不到 gleaner | 路径是否正确、是否重启客户端 |
 | Elsevier 0 篇 | 检索式是否过窄、key 是否有订阅全文权限 |

@@ -3,13 +3,13 @@
     "gleaner": {
       "type": "stdio",
       "command": "C:/Path/To/python.exe",
-      "args": ["C:/Path/To/0128#cnki_scraper/acq_mcp.py"],
+      "args": ["C:/Path/To/gleaner-mcp/acq_mcp.py"],
       "env": {
         "ELSEVIER_API_KEY": "your_elsevier_api_key_here",
         "CJY_USER": "your_chaojiying_username",
         "CJY_PASS": "your_chaojiying_password",
         "CJY_SOFTID": "your_softid",
-        "ACQ_PROXY": "http://127.0.0.1:10808"
+        "ACQ_PROXY": "http://127.0.0.1:PORT"
       }
     }
   }

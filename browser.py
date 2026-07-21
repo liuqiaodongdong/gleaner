@@ -98,8 +98,8 @@ def launch_browser():
         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
         accept_downloads=True,
     )
-    # 代理：主力机本地跑需经代理拿知网机构权限（Playwright 默认不吃系统代理，必须显式传）。
-    # 由 ACQ_PROXY 指定，如 http://127.0.0.1:10808；不设则直连。
+    # 代理：知网机构权限（Playwright 默认不吃系统代理，需显式传）。
+    # ACQ_PROXY 示例 http://127.0.0.1:PORT（端口以本机代理软件为准）；不设则直连。
     _proxy = os.environ.get("ACQ_PROXY", "")
     if _proxy:
         _ctx_kwargs["proxy"] = {"server": _proxy}

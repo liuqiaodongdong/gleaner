@@ -1,70 +1,51 @@
-# Gleaner（物尽其用）—— 机构学术资源采集 MCP
+# Gleaner
 
-把「主题 → 检索 → 下载全文 → 归一化语料」封装成 **stdio MCP**（`gleaner`），在本机运行，可被 Claude Code / 其他 MCP 客户端调用。
+多源学术文献采集 MCP（stdio）。把「检索 → 下载全文 → 归一化元数据」交给 Claude Code 等 Agent 一键完成。
 
-三条采集线**全部在本机执行**（无需备用机 SSH）：
+| 来源 | 工具 | 说明 | 产物 |
+|------|------|------|------|
+| **中国知网 CNKI** | `cnki_collect` / `cnki_list` | 关键词或专业检索式；全文需机构权限 | PDF / CAJ |
+| **Elsevier / ScienceDirect** | `els_collect` | 官方 API + 期刊白名单 | Markdown（+ XML） |
+| **国际文献** | `intl_collect` | OpenAlex 发现 → OA / NBER / Sci-Hub / 可选 CARSI | PDF |
 
-| 线 | MCP 工具 | 鉴权 / 网络 | 产物 |
-|---|---|---|---|
-| **CNKI 中文** | `cnki_collect` / `cnki_list` | 机构代理 + 超级鹰过验证码 | PDF / CAJ |
-| **国际 #13** | `intl_collect` | 公网（绕系统代理直连）+ 可选 CARSI cookie | PDF |
-| **Elsevier** | `els_collect` | 官方 API + **API key** | MD（+ XML 留底） |
-
-产物统一落在 `corpus/<批次名>/`，跨源合并表为 `corpus/merged_metadata.csv`。
+输出目录：`corpus/<批次>/metadata.csv` + `papers/`。
 
 ---
 
-## 使用指南（分发安装）
+## 快速开始
 
-### 0. 你需要准备什么
-
-| 能力 | 是否必需 | 怎么拿 |
-|---|---|---|
-| Python 3.11+ | 必需 | 本机 Python / conda |
-| 机构网络或代理 | CNKI 全文需要 | 校园网 / VPN / 可访问知网机构库的代理 |
-| 超级鹰账号 | CNKI 下载验证码需要 | [chaojiying.com](https://www.chaojiying.com/) |
-| Elsevier API key | Elsevier 线需要 | [dev.elsevier.com](https://dev.elsevier.com/) → Create API Key（建议学校邮箱） |
-| 系统 Edge 或 Chromium | CNKI 浏览器自动化 | Windows 推荐 Edge；或 `playwright install chromium` |
-
-**不会随仓库分发（也切勿上传）的内容：**
-
-- `cookies.json`、`acq/cookies/**`（本机会话）
-- `acq/data/.elsevier_key`、`.env`（密钥）
-- `corpus/`、`output/`（下载产物）
-- 个人路径的 `.mcp.json`
-
-### 1. 获取代码并安装依赖
+### 1. 安装
 
 ```bash
-cd <你的目录>
-# git clone <本仓库>   # 或解压分发包
-cd 0128#cnki_scraper   # 以实际目录名为准
+git clone https://github.com/liuqiaodongdong/gleaner-mcp.git
+cd gleaner-mcp
 
 python -m venv .venv
-# Windows:
+# Windows
 .venv\Scripts\activate
-# macOS/Linux:
+# macOS / Linux
 # source .venv/bin/activate
 
 pip install -r requirements.txt
-# CNKI 若不用系统 Edge，再装浏览器内核：
+# 若不用系统 Edge 跑知网，再执行：
 # playwright install chromium
 ```
 
-### 2. 配置密钥（必做，且只放本机）
+需要 **Python 3.11+**。知网线建议 Windows + 系统 Edge。
 
-任选一种方式（**推荐写在 MCP 的 `env` 里**，不落盘到仓库）。
+### 2. 准备账号（按需）
 
-#### 方式 A：Claude Code / MCP 配置（推荐）
+| 用途 | 是否需要 | 申请 |
+|------|----------|------|
+| 知网全文 | 机构网络/代理 + [超级鹰](https://www.chaojiying.com/)（验证码 9602） | 代理可用校园网/VPN；超级鹰需积分 |
+| Elsevier | [Elsevier API Key](https://dev.elsevier.com/) | 建议学校邮箱注册 |
+| 国际 OA 线 | 通常不需要 | — |
 
-1. 复制模板：
+首次使用可先调 MCP 工具 **`setup_status`**，它会检查缺什么并给出配置步骤。
 
-```bash
-# Windows 示例：把配置合并进 Claude 的 mcpServers
-# 模板见仓库内 .mcp.json.example
-```
+### 3. 接入 Claude Code（或其他 MCP 客户端）
 
-2. 编辑 Claude 配置（Windows 常见路径：`C:\Users\<你>\.claude.json`），加入：
+编辑 MCP 配置（Claude Code 常见路径：`~/.claude.json`），加入：
 
 ```json
 {
@@ -72,12 +53,12 @@ pip install -r requirements.txt
     "gleaner": {
       "type": "stdio",
       "command": "C:/Path/To/python.exe",
-      "args": ["C:/Path/To/0128#cnki_scraper/acq_mcp.py"],
+      "args": ["C:/Path/To/gleaner-mcp/acq_mcp.py"],
       "env": {
-        "ELSEVIER_API_KEY": "你的ElsevierKey",
-        "CJY_USER": "超级鹰用户名",
-        "CJY_PASS": "超级鹰密码",
-        "CJY_SOFTID": "超级鹰softid",
+        "ELSEVIER_API_KEY": "your_key",
+        "CJY_USER": "chaojiying_user",
+        "CJY_PASS": "chaojiying_pass",
+        "CJY_SOFTID": "your_softid",
         "ACQ_PROXY": "http://127.0.0.1:10808"
       }
     }
@@ -85,199 +66,116 @@ pip install -r requirements.txt
 }
 ```
 
-说明：
+- 将 `command` / `args` 改成你的本机绝对路径  
+- 密钥放在 `env` 里即可；Elsevier 也可写成文件 `acq/data/.elsevier_key`（单行）  
+- 字段说明见 [`.mcp.json.example`](.mcp.json.example)、[`.env.example`](.env.example)  
+- 重启客户端后，`/mcp` 应能看到 `gleaner`
 
-- `command` / `args` 必须改成**你机器上的绝对路径**
-- `ACQ_PROXY`：CNKI 拿机构权限用的 HTTP 代理；若已开系统代理且与浏览器一致，也可不写（程序会读 Windows 系统代理）
-- 字段清单见 [`.env.example`](.env.example)、[`.mcp.json.example`](.mcp.json.example)
+### 4. （可选）知网登录缓存
 
-#### 方式 B：密钥文件（仅 Elsevier）
-
-```text
-acq/data/.elsevier_key   # 单行 API key，无换行杂讯
-```
-
-该路径已在 `.gitignore` 中，**不要** `git add`。
-
-#### 方式 C：系统环境变量
-
-```text
-ELSEVIER_API_KEY / CJY_USER / CJY_PASS / CJY_SOFTID / ACQ_PROXY
-```
-
-### 3. （可选）CNKI 首次登录存 cookie
-
-机构 session 可减少验证码频率：
+减少验证码频率：
 
 ```bash
 set ACQ_BROWSER_CHANNEL=msedge
 python login.py
-# 浏览器打开后完成访问；cookies 写入 cookies.json（已 gitignore）
 ```
 
-### 4. 验证 MCP 已连接
+---
 
-1. 重启 Claude Code（或你的 MCP 客户端）
-2. `/mcp` 应看到 `gleaner`
-3. 可用工具：
+## MCP 工具
 
 | 工具 | 作用 |
-|---|---|
-| **`setup_status`** | **部署引导（优先）**：检查超级鹰 / Elsevier key / cookies / 代理，返回申请步骤 |
-| `cnki_collect` | 知网检索 + 全文下载 |
+|------|------|
+| `setup_status` | 检查配置是否齐全，返回待办步骤（**建议先调**） |
+| `cnki_collect` | 知网检索并下载全文 |
 | `cnki_list` | 知网仅题录（不下 PDF） |
-| `intl_collect` | 国际：OpenAlex 发现 → OA / NBER / Sci-Hub / CARSI |
-| `els_collect` | Elsevier 白名单刊 + 全文 XML→MD |
-| `chaojiying_score` | 查超级鹰积分 |
-| `list_sources` | 列各源状态 / 配额 / 就绪摘要 |
+| `els_collect` | Elsevier 白名单刊检索 + 全文转 MD |
+| `intl_collect` | 国际论文发现与下载 |
+| `chaojiying_score` | 查询超级鹰积分 |
+| `list_sources` | 各源状态与配额摘要 |
 
-### 4.1 Agent 部署引导（自动）
+Agent 约定见 [`AGENTS.md`](AGENTS.md)：未配置完成时会引导你补齐，而不是盲目采集。
 
-仓库含 [`AGENTS.md`](AGENTS.md)：约定 **agent 首次使用或采集前必须先调 `setup_status`**，把 `next_steps_for_user` 展示给你，协助申请：
-
-- 超级鹰 → https://www.chaojiying.com/
-- Elsevier API → https://dev.elsevier.com/
-- CNKI cookies → 本机 `python login.py`
-
-未配齐时调用 `cnki_collect` / `els_collect` 会返回 `setup_incomplete`（不会傻跑），agent 应继续引导配置。
-
-人也可以直接让 agent：「先检查 gleaner 部署状态」。
-
-### 5. 典型调用
+### 调用示例
 
 ```text
-# 知网关键词
+setup_status()
+
 cnki_collect(query="数字经济", num=10, out_name="demo_cnki")
-
-# 知网专业检索式
 cnki_collect(query="SU %= '供应链' AND YR >= 2024", num=20, pro=True)
-
-# 仅题录（给学者统计等）
 cnki_list(query="数字经济", num=100)
 
-# Elsevier：ScienceDirect qs 布尔式 + 白名单 tier
 els_collect(
   query='("digital economy" OR digitalization) AND innovation',
-  num=10, tier="1+2", year_from="2020", out_name="demo_els"
+  num=10, tier="1+2", year_from="2020"
 )
 
-# 国际 OA / Sci-Hub 等
 intl_collect(query="minimum wage employment", num=15, year_from="2018")
 ```
 
-批次目录：
+---
 
-```text
-corpus/<out_name 或自动名>/
-  metadata.csv
-  papers/          # PDF / MD / XML
+## 工作原理（简）
+
 ```
+MCP 客户端
+  └── acq_mcp.py (gleaner)
+        ├── CNKI  → Playwright + 代理 + 超级鹰
+        ├── Elsevier → REST API + API Key
+        └── 国际 → OpenAlex / OA / Sci-Hub / CARSI
+              └── corpus/<批次>/
+```
+
+- 知网：无头浏览器（默认 Edge），验证码走超级鹰 9602  
+- Elsevier：Search API + Article Retrieval，全文 XML 转结构化 Markdown  
+- 国际/Elsevier 的 HTTP 请求默认绕过系统代理（`trust_env=False`），避免部分代理导致的 SSL 错误；知网取机构权限时则使用 `ACQ_PROXY` 或系统代理  
 
 ---
 
-## 架构（本机）
-
-```
-Claude Code / MCP 客户端
-   │  gleaner (stdio → acq_mcp.py)
-   ├── cnki_*  → run_batch.py / run_list.py   # 浏览器 + 代理 + 超级鹰
-   ├── intl_*  → run_intl_batch.py            # 直连外网
-   └── els_*   → run_els_batch.py             # API key
-                 产物 → corpus/<批次>/
-```
-
-- **CNKI**：Playwright（默认无头 + 系统 Edge）经代理访问机构库；验证码用超级鹰 type **9602**。
-- **Elsevier**：`X-ELS-APIKey`；检索 + Article Retrieval 全文 XML → 结构化 MD；白名单见 `acq/data/intl_journal_tiers.json`。
-- **国际 / Elsevier HTTP**：`trust_env=False` 绕 Clash，避免 `SSL: UNEXPECTED_EOF`；CNKI 浏览器则**需要**代理时用 `ACQ_PROXY`。
-
----
-
-## CLI 调试（不经 MCP）
+## 命令行（调试用）
 
 ```bash
-# CNKI
 python main.py 供应链 30
-python run_batch.py path/to/params.json
-
-# Elsevier（params 里 out 用绝对路径更稳）
-python run_els_batch.py path/to/els_params.json
-
-# 国际
-python run_intl_batch.py path/to/intl_params.json
+python run_batch.py params.json
+python run_els_batch.py els_params.json
+python run_intl_batch.py intl_params.json
 ```
 
-JSON 参数字段见各 `run_*.py` 文件头注释。
+参数字段见各脚本文件头注释。
 
 ---
 
-## 安全与分发清单
-
-上传 / 打包 / 开源前请确认：
-
-| 路径 | 是否应出现在仓库 |
-|---|---|
-| `cookies.json` | ❌ 否 |
-| `acq/cookies/` | ❌ 否 |
-| `acq/data/.elsevier_key` | ❌ 否 |
-| `.env` / 含真实密钥的 `.mcp.json` | ❌ 否 |
-| `corpus/`、`output/` | ❌ 否（体量大且含文献） |
-| `config.py` 中的账号默认值 | ❌ 否（已改为仅读环境变量） |
-| `.env.example` / `.mcp.json.example` | ✅ 可以（占位符） |
-| `acq/data/intl_journal_tiers.json` | ✅ 可以（刊名白名单，非密钥） |
-
-本地自检：
-
-```bash
-git status
-git check-ignore -v cookies.json acq/data/.elsevier_key .mcp.json
-# 应显示被 ignore
-
-git ls-files | findstr /i "cookie elsevier_key .env"
-# 应无输出
-```
-
-> **说明**：若历史 commit 里曾写入过超级鹰密码等，公开推送前请**改密**，并考虑用 `git filter-repo` 等清理历史。当前工作区已去掉 `config.py` 默认账号。
-
----
-
-## 代码结构
+## 项目结构
 
 ```
-acq/                     # 多源采集核心
-  sources/               # openalex / oa / scihub / nber / carsi / els*
-  els_config.py          # API key 读取
-  data/intl_journal_tiers.json
-acq_mcp.py               # MCP 入口（gleaner）
-acq/setup_check.py       # 部署就绪检查（setup_status）
-AGENTS.md                # Agent 行为约定（首次 setup_status）
-run_batch.py / run_list.py / run_els_batch.py / run_intl_batch.py
-browser.py scraper.py downloader.py captcha.py login.py config.py
+acq_mcp.py           # MCP 入口
+acq/                 # 采集核心与各源 adapter
+  setup_check.py     # setup_status 实现
+  sources/           # cnki 相关外：oa / scihub / els / openalex …
+run_*.py             # 各线批量入口
+browser.py / captcha.py / login.py …
 tests/
-.mcp.json.example
-.env.example
+AGENTS.md            # 给 Agent 的使用约定
 ```
 
 ---
 
-## 依赖
+## 故障排查
 
-见 [`requirements.txt`](requirements.txt)：`playwright`、`requests`、`mcp`、`lxml`、`pandas`、`ddddocr`、`pytest` 等。
-
----
-
-## 故障排查（简）
-
-| 现象 | 可能原因 |
-|---|---|
-| `Elsevier API key 缺失` | 未设 `ELSEVIER_API_KEY` 且无 `.elsevier_key` |
-| `超级鹰账号未配置` | 未设 `CJY_*` |
-| CNKI 打不开 / 无机构权限 | 代理未通；设 `ACQ_PROXY` 或系统代理 |
-| 国际线 `SSL: UNEXPECTED_EOF` | 请求误走 Clash；应保持 `trust_env=False`（代码已处理） |
-| MCP 工具列表没有 gleaner | `command`/`args` 路径错误，或未重启客户端 |
-| `els_collect` 0 篇 | 检索式过窄 / tier 无刊 / key 无订阅权限 |
+| 现象 | 处理 |
+|------|------|
+| `setup_incomplete` / 缺密钥 | 调 `setup_status`，按返回步骤配置 |
+| 知网无权限 / 打不开 | 检查 `ACQ_PROXY` 或系统代理是否指向机构网络 |
+| 超级鹰相关报错 | 检查 `CJY_USER` / `CJY_PASS` / `CJY_SOFTID` 与积分 |
+| MCP 里看不到 gleaner | 路径是否正确、是否重启客户端 |
+| Elsevier 0 篇 | 检索式是否过窄、key 是否有订阅全文权限 |
 
 ---
 
-## 设计历史
+## 许可证与声明
 
-`docs/superpowers/` 为早期 spec/plan，其中「备用机 SSH」等拓扑**已过时**，以本文与 `acq_mcp.py` 为准。
+- 请遵守知网、Elsevier 等平台服务条款，仅在合法授权（机构订阅等）范围内使用。  
+- 验证码打码、第三方镜像等能力由你自行承担合规风险。  
+- 本项目按「现状」提供，作者不对滥用或账号封禁负责。
+
+Issues / PR 欢迎。

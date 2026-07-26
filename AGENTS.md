@@ -18,6 +18,7 @@
 |---|---|---|---|
 | CNKI 全文 | `cnki_collect` | 机构代理 `ACQ_PROXY`/系统代理 + 超级鹰 `CJY_USER/PASS/SOFTID` | `python login.py` → `cookies.json` |
 | CNKI 题录 | `cnki_list` | 机构代理 | cookies |
+| CNKI 分级建式 | `cnki_prepare` | 无（纯本地、不启浏览器） | Agent 先做关键词拓展 |
 | Elsevier | `els_collect` | **官方** `ELSEVIER_API_KEY` 或 `acq/data/.elsevier_key` | 见下方官方申请流程 |
 | 国际 | `intl_collect` | 公网（一般无需密钥） | CARSI cookie 可选 |
 
@@ -63,8 +64,20 @@
 
 ## 采集流程（就绪后）
 
-主题 → 检索式 → `cnki_collect(pro=True)` / `els_collect` / `intl_collect` →  
-产物在 `corpus/<批次>/`（`metadata.csv` + `papers/`）。
+### CNKI 分级（推荐）
+
+1. **Agent** 根据研究方向做同义发散与概念分组（MCP 不做 LLM 拓展）。
+2. `cnki_prepare(topic, concept_groups_json)` → 写出 `keyword_workspace/<topic>/` 与 L1–L4 式子（含 `LY` 刊滤，白名单 `acq/data/cnki_journal_tiers.json`）。
+3. `cnki_collect(level="L1", search_md=..., num=N)` 或 `cnki_list(...)`；结果少再升 L2→L3→L4。
+4. 产物在 `corpus/<批次>/`。
+
+概念组 JSON 示例：
+`[{"name":"数字经济","keywords":["数字经济","数字化","数据要素"]},{"name":"全要素生产率","keywords":["全要素生产率","TFP"]}]`
+
+### 其它
+
+- CNKI 兼容：`cnki_collect(query=..., pro=False/True)`（无分级、无 `LY`）。
+- Elsevier / 国际：`els_collect` / `intl_collect`。
 
 ## 出错时
 

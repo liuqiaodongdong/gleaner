@@ -7,7 +7,7 @@
 
 | 来源 | 工具 | 说明 | 产物 |
 |------|------|------|------|
-| **中国知网 CNKI** | `cnki_collect` / `cnki_list` | 关键词或专业检索式；全文需机构权限 | PDF / CAJ |
+| **中国知网 CNKI** | `cnki_prepare` → `cnki_collect` / `cnki_list` | 关键词 / 专业式 / **期刊分级 L1–L4**（`cnki_journal_tiers.json`） | PDF / CAJ / 题录 |
 | **Elsevier / ScienceDirect** | `els_collect` | 官方 API + 期刊白名单 | Markdown（+ XML） |
 | **国际文献** | `intl_collect` | OpenAlex 发现 → OA / NBER / Sci-Hub / 可选 CARSI | PDF |
 
@@ -104,8 +104,9 @@ python login.py
 | 工具 | 作用 |
 |------|------|
 | `setup_status` | 检查配置是否齐全，返回待办步骤（**建议先调**） |
-| `cnki_collect` | 知网检索并下载全文 |
-| `cnki_list` | 知网仅题录（不下 PDF） |
+| `cnki_prepare` | Agent 提供概念组 → 生成 L1–L4 专业检索式（`LY` 刊滤，不启浏览器） |
+| `cnki_collect` | 知网全文；支持 `level=L1..L4` + `search_md` 分级采集 |
+| `cnki_list` | 知网仅题录；同样支持分级 |
 | `els_collect` | Elsevier 白名单刊检索 + 全文转 MD |
 | `intl_collect` | 国际论文发现与下载 |
 | `chaojiying_score` | 查询超级鹰积分 |
@@ -113,14 +114,26 @@ python login.py
 
 Agent 约定见 [`AGENTS.md`](AGENTS.md)：未配置完成时会引导你补齐，而不是盲目采集。
 
+**CNKI 分级**：同义发散由 Agent 完成；`cnki_prepare` 只做确定性拼式。刊表：`acq/data/cnki_journal_tiers.json`（tier1/2/3）。
+
 ### 调用示例
 
 ```text
 setup_status()
 
+# 1) Agent 拓展概念组后建式（不启浏览器）
+cnki_prepare(
+  topic="数字经济",
+  concept_groups='[{"name":"数字经济","keywords":["数字经济","数字化","数据要素"]}]',
+  year_from="2015"
+)
+# 2) 按 L1 顶刊下载 / 题录
+cnki_collect(level="L1", search_md="<cnki_prepare 返回的 search_md>", num=30)
+cnki_list(level="L2", topic="数字经济", num=100)
+
+# 兼容：无分级
 cnki_collect(query="数字经济", num=10, out_name="demo_cnki")
-cnki_collect(query="SU %= '供应链' AND YR >= 2024", num=20, pro=True)
-cnki_list(query="数字经济", num=100)
+cnki_collect(query="SU %= '供应链' AND YE >= '2024'", num=20, pro=True)
 
 els_collect(
   query='("digital economy" OR digitalization) AND innovation',

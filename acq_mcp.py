@@ -3,7 +3,7 @@
 Authors: liuqiaodongdong and Grok (https://github.com/liuqiaodongdong · xAI)
 
 三条采集线（全部主力机本地执行，无需备用机 SSH）：
-  - CNKI 中文线   cnki_collect(全文)/cnki_list(题录)  —— 本地经代理(机构权限)+超级鹰过码 → PDF
+  - CNKI 中文线   cnki_prepare → cnki_collect/cnki_list(可分级 L1–L4) —— 代理+超级鹰 → PDF/题录
   - 国际线 #13     intl_collect                        —— 本地直跑(OpenAlex→OA/NBER/Sci-Hub/CARSI) → PDF
   - Elsevier 订阅线 els_collect                        —— 本地官方 API + API key → 全文 XML 转 MD
 辅助：setup_status(部署引导) / chaojiying_score / list_sources。
@@ -13,7 +13,11 @@ Authors: liuqiaodongdong and Grok (https://github.com/liuqiaodongdong · xAI)
 若对应线 ready=false，必须按 next_steps_for_user 引导用户申请/填写凭据，
 禁止在未配置时硬跑采集。详见仓库 AGENTS.md。
 
-CC 侧典型用法：setup_status → 配齐凭据 → 主题 → 检索式 → cnki_collect / els_collect。
+CNKI 分级流程（推荐）：
+  Agent 做关键词同义发散与概念分组
+  → cnki_prepare(topic, concept_groups)  # 确定性生成 L1–L4 + LY 刊滤
+  → cnki_collect(level="L1", search_md=..., num=N) 或 cnki_list(...)
+  无分级时仍可用 cnki_collect(query=..., pro=False/True) 兼容旧调用。
 """
 import base64
 import csv
@@ -28,7 +32,8 @@ from mcp.server.fastmcp import FastMCP
 
 mcp = FastMCP("gleaner")  # 物尽其用 Gleaner
 
-LOCAL_CORPUS = Path(__file__).parent / "corpus"   # 主力机语料目录(喂 0131)
+PROJECT_ROOT = Path(__file__).parent
+LOCAL_CORPUS = PROJECT_ROOT / "corpus"   # 主力机语料目录(喂 0131)
 
 
 def _proxy_server() -> str:
@@ -68,7 +73,7 @@ def _refresh_merged():
 
 
 def _run_collect(query: str, num: int = 20, pro: bool = False, out_name: str = "",
-                 script: str = "run_batch.py") -> dict:
+                 script: str = "run_batch.py", extra: dict | None = None) -> dict:
     """核心：写参数→主力机本地直跑 <script>(经代理拿知网机构权限)→读 metadata。
     script：cnki_collect→run_batch.py，cnki_list→run_list.py。
     """
@@ -86,16 +91,15 @@ def _run_collect(query: str, num: int = 20, pro: bool = False, out_name: str = "
     pfile.write_text(json.dumps(params, ensure_ascii=False), encoding="utf-8")
 
     # 2) 本地直跑采集脚本：无头 + 系统 Edge + 代理(拿机构权限)
-    project_root = Path(__file__).parent
     env = dict(os.environ)
     env.setdefault("ACQ_HEADLESS", "1")
     env.setdefault("ACQ_BROWSER_CHANNEL", "msedge")
     proxy = _proxy_server()
     if proxy:
         env["ACQ_PROXY"] = proxy
-    r = subprocess.run([sys.executable, str(project_root / script), str(pfile)],
+    r = subprocess.run([sys.executable, str(PROJECT_ROOT / script), str(pfile)],
                        capture_output=True, text=True, encoding="utf-8",
-                       errors="replace", timeout=1800, cwd=str(project_root), env=env)
+                       errors="replace", timeout=1800, cwd=str(PROJECT_ROOT), env=env)
     out, err = r.stdout, r.stderr
 
     # 3) 读 metadata(脚本已直接写入 out_dir，无需 scp 拉回)
@@ -108,60 +112,180 @@ def _run_collect(query: str, num: int = 20, pro: bool = False, out_name: str = "
     pdir = local / "papers"
     if pdir.exists():
         npdf = len(list(pdir.glob("*.pdf"))) + len(list(pdir.glob("*.caj")))
-    return {"query": query, "mode": "pro" if pro else "keyword",
-            "ok": r.returncode == 0, "exit_code": r.returncode,
-            "proxy": proxy or "(直连)",
-            "downloaded_files": npdf, "metadata_rows": len(titles),
-            "local_dir": str(local), "metadata_csv": str(meta),
-            "merged_metadata": _refresh_merged(),
-            "titles": titles, "log_tail": (out or "")[-1000:],
-            "stderr_tail": (err or "")[-500:]}
+    result = {"query": query, "mode": "pro" if pro else "keyword",
+              "ok": r.returncode == 0, "exit_code": r.returncode,
+              "proxy": proxy or "(直连)",
+              "downloaded_files": npdf, "metadata_rows": len(titles),
+              "local_dir": str(local), "metadata_csv": str(meta),
+              "merged_metadata": _refresh_merged(),
+              "titles": titles, "log_tail": (out or "")[-1000:],
+              "stderr_tail": (err or "")[-500:]}
+    if extra:
+        result.update(extra)
+    return result
+
+
+def _resolve_tiered_expression(level: str, search_md: str = "", topic: str = "",
+                               range_label: str = "") -> tuple[str, str, str]:
+    """从 search.md 解析 L1–L4 表达式。返回 (expression, search_md_path, level)。"""
+    from acq.sources.cnki_query import (
+        VALID_LEVELS, extract_level_expression, validate_tiered_expression,
+    )
+    level_u = (level or "").strip().upper()
+    if level_u not in VALID_LEVELS:
+        raise ValueError(f"level 须为 {', '.join(VALID_LEVELS)} 之一，收到: {level!r}")
+
+    path = Path(search_md) if search_md else None
+    if path is None or not str(search_md).strip():
+        if not topic:
+            raise ValueError("分级采集需要 search_md，或同时提供 topic（+ 可选 range_label）")
+        base = PROJECT_ROOT / "keyword_workspace" / topic
+        if range_label:
+            path = base / range_label / "search.md"
+        else:
+            # 取 topic 下最新一份 search.md
+            candidates = sorted(base.glob("*/search.md"), key=lambda p: p.stat().st_mtime, reverse=True)
+            if not candidates:
+                raise FileNotFoundError(
+                    f"未找到 keyword_workspace/{topic}/*/search.md，请先 cnki_prepare"
+                )
+            path = candidates[0]
+    path = Path(path)
+    if not path.is_file():
+        raise FileNotFoundError(f"search.md 不存在: {path}（请先 cnki_prepare）")
+
+    expression = extract_level_expression(path.read_text(encoding="utf-8"), level_u)
+    validate_tiered_expression(expression)
+    return expression, str(path), level_u
+
+
+def _cnki_dispatch(query: str, num: int, pro: bool, out_name: str, script: str,
+                   level: str = "", search_md: str = "", topic: str = "",
+                   range_label: str = "") -> dict:
+    """普通关键词/专业式 或 分级 L1–L4。"""
+    if level and str(level).strip():
+        expression, smd, level_u = _resolve_tiered_expression(
+            level, search_md=search_md, topic=topic or query, range_label=range_label
+        )
+        slug = re.sub(r"\W+", "_", (topic or query or "cnki"))[:24].strip("_") or "cnki"
+        batch = out_name or f"{slug}_{level_u}"
+        return _run_collect(
+            expression, num=num, pro=True, out_name=batch, script=script,
+            extra={"mode": "tiered", "level": level_u, "search_md": smd,
+                   "expression_preview": expression[:240] + ("…" if len(expression) > 240 else "")},
+        )
+    if not (query and str(query).strip()):
+        raise ValueError("非分级模式需要 query；分级模式请传 level + search_md/topic")
+    return _run_collect(query, num=num, pro=pro, out_name=out_name, script=script)
 
 
 @mcp.tool()
-def cnki_collect(query: str, num: int = 20, pro: bool = False, out_name: str = ""):
+def cnki_prepare(topic: str, concept_groups: str, year_from: str = "2015",
+                 year_to: str = "", range_label: str = "", max_keywords: int = 8,
+                 num: int = 30):
+    """由 Agent 提供的概念组，确定性生成 CNKI 分级专业检索式（L1–L4），不启浏览器。
+
+    【分工】同义发散 / 概念拆解由 Agent 完成；本工具只拼 SU + LY 刊白名单 + YE。
+    期刊分级：acq/data/cnki_journal_tiers.json（tier1 顶刊 / tier2 核心 / tier3 扩展）。
+    阶梯：L1=全组+Tier1，L2=全组+Tier2，L3=前两组+Tier1，L4=前两组+Tier2。
+
+    Args:
+        topic: 研究方向/主题（用作目录名，建议中文）
+        concept_groups: 概念组，二选一格式：
+          1) JSON 数组：[{"name":"数字经济","keywords":["数字经济","数字化",...]}, ...]
+          2) keywords.md 全文（须含 ### 分组 与 中文: 行）
+        year_from / year_to: 发表年份下/上限，默认 year_from=2015
+        range_label: 子目录名，默认 year_from_year_to
+        max_keywords: 每组最多纳入检索的词数（默认 8）
+        num: 写入 search.md 用法说明的目标篇数
+    返回 JSON：keywords_md / search_md 路径、levels.L1..L4 表达式、tier_counts、next 提示。
+    下一步：cnki_collect(level="L1", search_md=返回的路径, num=...) 或 cnki_list(...)。
+    """
+    from acq.sources.cnki_query import prepare_search
+    try:
+        result = prepare_search(
+            topic=topic,
+            concept_groups=concept_groups,
+            workspace_root=PROJECT_ROOT,
+            year_from=year_from,
+            year_to=year_to,
+            range_label=range_label,
+            max_keywords=int(max_keywords),
+            num=int(num),
+        )
+        result["ok"] = True
+        return json.dumps(result, ensure_ascii=False, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": str(exc),
+                           "hint": "concept_groups 须为 JSON 数组或含「中文:」的 keywords.md"},
+                          ensure_ascii=False, indent=2)
+
+
+@mcp.tool()
+def cnki_collect(query: str = "", num: int = 20, pro: bool = False, out_name: str = "",
+                 level: str = "", search_md: str = "", topic: str = "",
+                 range_label: str = ""):
     """检索知网并下载全文(主力机本地，经代理拿机构权限，超级鹰过验证码)。
 
+    两种模式：
+      A) 分级（推荐）：先 cnki_prepare，再 level="L1".."L4" + search_md（或 topic）。
+         表达式强制含 LY 期刊过滤；批次名默认 <topic>_L1。
+      B) 兼容：query 关键词，或 pro=True 时 query=专业检索式。
+
     依赖：ACQ_PROXY/系统代理 + CJY_* 超级鹰；推荐 cookies.json（python login.py）。
-    若未配置会返回 setup_incomplete 与 next_steps_for_user，请先引导用户完成配置。
     首次使用请先调 setup_status。
 
     Args:
-        query: 关键词；或专业检索式(pro=True，用 cnki-advanced-search 技能生成)
+        query: 关键词；或专业检索式(pro=True)；分级模式可省略
         num: 目标篇数
-        pro: 是否专业检索式模式
-        out_name: 批次目录名(默认按 query 自动生成)
-    返回 JSON：下载数、主力机本地目录、metadata.csv 路径、标题列表。
+        pro: 是否专业检索式模式（分级模式自动 True）
+        out_name: 批次目录名
+        level: L1/L2/L3/L4，非空则走分级
+        search_md: cnki_prepare 返回的 search.md 路径
+        topic: 无 search_md 时用于定位 keyword_workspace/<topic>/*/search.md
+        range_label: 可选，配合 topic 精确定位
     """
     from acq.setup_check import preflight
     bad = preflight("cnki_collect")
     if bad:
         return json.dumps(bad, ensure_ascii=False, indent=2)
-    return json.dumps(_run_collect(query, num, pro, out_name), ensure_ascii=False, indent=2)
+    try:
+        return json.dumps(
+            _cnki_dispatch(query, num, pro, out_name, "run_batch.py",
+                           level=level, search_md=search_md, topic=topic,
+                           range_label=range_label),
+            ensure_ascii=False, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
-def cnki_list(query: str, num: int = 100, pro: bool = False, out_name: str = ""):
-    """检索知网只取题录元数据(作者/期刊/年/被引)，不下全文，供 find-leading-scholars 排本土大佬。
+def cnki_list(query: str = "", num: int = 100, pro: bool = False, out_name: str = "",
+              level: str = "", search_md: str = "", topic: str = "",
+              range_label: str = ""):
+    """检索知网只取题录元数据(作者/期刊/年/被引)，不下全文。
 
-    与 cnki_collect 同为主力机本地执行，但跑 run_list.py —— 只爬列表页，
-    不进详情页、不下 PDF，因此快很多、配额可设大(num 默认 100)。
-    需要机构代理；首次使用请先 setup_status。
+    与 cnki_collect 相同支持分级 level/search_md/topic；跑 run_list.py，快、可大配额。
+    需要机构代理；首次请 setup_status。
 
     Args:
-        query: 关键词；或专业检索式(pro=True，用 cnki-advanced-search 技能生成)
-        num: 目标题录数
-        pro: 是否专业检索式模式
-        out_name: 批次目录名(默认按 query 自动生成)
-    返回 JSON：metadata_rows、主力机本地目录、metadata.csv 路径、标题列表。
+        query / pro / out_name: 同 cnki_collect（兼容模式）
+        level / search_md / topic / range_label: 分级模式，先 cnki_prepare
+        num: 目标题录数（默认 100）
     downloaded_files 恒为 0（题录模式不下文，属预期）。
     """
     from acq.setup_check import preflight
     bad = preflight("cnki_list")
     if bad:
         return json.dumps(bad, ensure_ascii=False, indent=2)
-    return json.dumps(_run_collect(query, num, pro, out_name, script="run_list.py"),
-                      ensure_ascii=False, indent=2)
+    try:
+        return json.dumps(
+            _cnki_dispatch(query, num, pro, out_name, "run_list.py",
+                           level=level, search_md=search_md, topic=topic,
+                           range_label=range_label),
+            ensure_ascii=False, indent=2)
+    except Exception as exc:
+        return json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False, indent=2)
 
 
 @mcp.tool()
@@ -353,10 +477,11 @@ def list_sources():
         "sources": [
             {"name": "cnki", "type": "paper",
              "status": "ready" if L["cnki"]["cnki_collect_ready"] else "needs_setup",
-             "modes": ["keyword", "pro(专业检索式)"], "access": "主力机本地经代理(机构权限)",
-             "tool": "cnki_collect",
+             "modes": ["keyword", "pro", "tiered L1-L4 (cnki_prepare→LY刊滤)"],
+             "access": "主力机本地经代理(机构权限)",
+             "tool": "cnki_collect / cnki_list / cnki_prepare",
              "ready": L["cnki"]["cnki_collect_ready"],
-             "note": "题录-only 走 cnki_list；首次请 setup_status"},
+             "note": "分级：Agent 拓展概念组→cnki_prepare→level=L1..L4；白名单 acq/data/cnki_journal_tiers.json"},
             {"name": "openalex", "type": "discovery", "status": "ready",
              "modes": ["keyword"], "access": "公网API(mailto必填)",
              "tool": "intl_collect", "note": "发现层，不直接下文"},

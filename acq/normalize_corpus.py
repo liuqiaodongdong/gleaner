@@ -1,4 +1,4 @@
-# acq/normalize_corpus.py — 跨源 corpus 归一 + DOI 去重，喂 0131 消费侧
+# acq/normalize_corpus.py — 跨源 corpus 归一 + DOI 去重
 import csv
 from pathlib import Path
 

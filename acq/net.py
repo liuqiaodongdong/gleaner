@@ -12,7 +12,7 @@ def _ctx(insecure: bool = False) -> ssl.SSLContext:
     return ctx
 
 def direct_opener(insecure: bool = False):
-    # 关键：ProxyHandler({}) 绕过 Clash，否则 SSL UNEXPECTED_EOF
+    # 关键：ProxyHandler({}) 忽略环境/系统代理，避免代理导致 SSL UNEXPECTED_EOF
     return urllib.request.build_opener(
         urllib.request.ProxyHandler({}),
         urllib.request.HTTPSHandler(context=_ctx(insecure)),
@@ -36,6 +36,6 @@ def get_stream(url, headers=None, timeout=25, insecure=False):
 def direct_requests_session():
     import requests
     s = requests.Session()
-    s.trust_env = False          # 绕过环境代理（Clash）
+    s.trust_env = False          # 忽略 HTTP_PROXY 等环境代理，国际/OA 走直连
     s.headers.update({"User-Agent": USER_AGENT})
     return s

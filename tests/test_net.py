@@ -4,7 +4,7 @@ from acq import net
 
 
 def test_direct_opener_has_no_proxy():
-    # 模拟系统配置了 Clash 代理；direct_opener() 必须忽略系统代理
+    # 模拟系统配了环境代理；direct_opener() 必须忽略它
     # 注：ProxyHandler({}) 不注册 *_open 方法，故不进 op.handlers，
     # 正确的验证点是 op.handle_open['http'] 中无 ProxyHandler 实例
     fake = {"http": "http://127.0.0.1:7890", "https": "http://127.0.0.1:7890"}

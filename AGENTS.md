@@ -6,7 +6,7 @@
 
 | 项 | 说明 |
 |----|------|
-| 默认仓库根 | 见 `GLEANER_ROOT`；未设时用本机默认路径或 CLI `--root` |
+| 默认仓库根 | 见 `GLEANER_ROOT`；未设时用 `gleaner_cli.py` 所在仓库根或 CLI `--root` |
 | 环境变量 | `GLEANER_ROOT` 指向本仓库根（含 `gleaner_cli.py`） |
 | 用户 Skill | 仓库 `skill/gleaner/`，安装到 `~/.grok/skills/gleaner/` |
 | 凭据 | 优先进程环境 / `GLEANER_ROOT/.env`；Elsevier 也可 `acq/data/.elsevier_key`；遗留 `.mcp.json` 仅迁移期可读 |

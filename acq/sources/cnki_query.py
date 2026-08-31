@@ -333,11 +333,12 @@ def build_markdown(
 {ladder['L4']}
 ```
 
-## Usage (Gleaner MCP)
+## Usage (Gleaner CLI)
 
-1. 先 `cnki_prepare`（本文件即其产物）
-2. 再 `cnki_collect(level="L1", search_md=本路径, num={num})` 或 `cnki_list(...)`
-3. 结果太少则升到 L2 → L3 → L4
+1. 先 `python gleaner_cli.py prepare`（本文件即其产物）
+2. 再 `python gleaner_cli.py cnki-list --level L1 --search-md 本路径 --num {num}`
+3. TOTAL 够用则 `python gleaner_cli.py cnki --level L1 --search-md 本路径 --num {num}`
+4. 结果太少则升到 L2 → L3 → L4
 """
 
 
@@ -406,7 +407,7 @@ def prepare_search(
         "levels": ladder,
         "recommended_level": "L1",
         "next": (
-            f'cnki_collect(level="L1", search_md=r"{search_path}", num={num}) '
-            f'或 cnki_list(level="L1", search_md=...)；结果少再 L2/L3/L4'
+            f'python gleaner_cli.py cnki-list --level L1 --search-md "{search_path}" --num {num}；'
+            f'够用再 cnki --level L1；结果少再 L2/L3/L4'
         ),
     }

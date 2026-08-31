@@ -15,7 +15,7 @@ ARTICLE_URL = "https://api.elsevier.com/content/article/doi/{doi}?view=FULL"
 
 def make_session(api_key: str) -> requests.Session:
     s = requests.Session()
-    s.trust_env = False  # 绕 Clash 直连铁律
+    s.trust_env = False  # Elsevier 官方 API 直连，不走环境代理
     s.headers.update({"X-ELS-APIKey": api_key, "User-Agent": UA})
     return s
 

@@ -3,6 +3,7 @@
 ddddocr 对多缺口干扰滑块不可靠（必选错缺口），已弃用；改用超级鹰人力众包。
 """
 import hashlib
+import os
 import random
 import time
 
@@ -16,23 +17,35 @@ _CJY_REPORT = "https://upload.chaojiying.net/Upload/ReportError.php"
 _CJY_SCORE = "https://upload.chaojiying.net/Upload/GetScore.php"
 
 
+def _cjy_user() -> str:
+    return (os.environ.get("CJY_USER") or CHAOJIYING_USER or "").strip()
+
+
+def _cjy_pass_raw() -> str:
+    return (os.environ.get("CJY_PASS") or CHAOJIYING_PASS or "").strip()
+
+
+def _cjy_softid() -> str:
+    return (os.environ.get("CJY_SOFTID") or CHAOJIYING_SOFTID or "").strip()
+
+
 def _require_cjy():
-    if not (CHAOJIYING_USER and CHAOJIYING_PASS and CHAOJIYING_SOFTID):
+    if not (_cjy_user() and _cjy_pass_raw() and _cjy_softid()):
         raise RuntimeError(
             "超级鹰账号未配置：请设置环境变量 CJY_USER / CJY_PASS / CJY_SOFTID"
-            "（见 README 或 .env.example / .mcp.json.example）"
+            "（见 README 或 .env.example）"
         )
 
 
 def _cjy_pass() -> str:
     _require_cjy()
-    return hashlib.md5(CHAOJIYING_PASS.encode()).hexdigest()
+    return hashlib.md5(_cjy_pass_raw().encode()).hexdigest()
 
 
 def _cjy_solve(img_bytes: bytes, codetype: int = 9602) -> dict:
     _require_cjy()
-    data = {"user": CHAOJIYING_USER, "pass2": _cjy_pass(),
-            "softid": CHAOJIYING_SOFTID, "codetype": str(codetype)}
+    data = {"user": _cjy_user(), "pass2": _cjy_pass(),
+            "softid": _cjy_softid(), "codetype": str(codetype)}
     files = {"userfile": ("a.jpg", img_bytes)}
     r = requests.post(_CJY_URL, data=data, files=files, timeout=60)
     return r.json()
@@ -43,8 +56,8 @@ def _cjy_report(pic_id: str) -> None:
     if not pic_id:
         return
     try:
-        requests.post(_CJY_REPORT, data={"user": CHAOJIYING_USER, "pass2": _cjy_pass(),
-                                          "softid": CHAOJIYING_SOFTID, "id": pic_id}, timeout=30)
+        requests.post(_CJY_REPORT, data={"user": _cjy_user(), "pass2": _cjy_pass(),
+                                          "softid": _cjy_softid(), "id": pic_id}, timeout=30)
     except Exception as e:
         print(f"[captcha] 报错返分失败: {e}")
 
@@ -53,7 +66,7 @@ def chaojiying_score() -> str:
     """查超级鹰积分余额。"""
     try:
         _require_cjy()
-        r = requests.post(_CJY_SCORE, data={"user": CHAOJIYING_USER, "pass2": _cjy_pass()}, timeout=30)
+        r = requests.post(_CJY_SCORE, data={"user": _cjy_user(), "pass2": _cjy_pass()}, timeout=30)
         return r.text
     except Exception as e:
         return f"score err: {e}"
@@ -148,11 +161,14 @@ _HANDLE_SELECTORS = (
     ".tencent-captcha-dy__slider-block",  # bar.cnki 2026 腾讯拼图滑块
     ".verify-move-block",
     ".verify-bar-area .verify-move-block",
+    "#verify-bar-box .verify-move-block",
+    ".verify-left-bar",
     ".slider-btn",
     ".slide-verify-slider-mask-item",
     ".btn_slide",
     ".nc_iconfont.btn_slide",
     "[class*='slider'][class*='btn']",
+    "[class*='verify-move']",
     ".verify-slide-block",
 )
 
@@ -184,6 +200,41 @@ def _find_panel_in_frames(page: Page):
             except Exception:
                 continue
     return page, None
+
+
+def _handle_visible(el) -> bool:
+    if not el:
+        return False
+    try:
+        return bool(el.is_visible())
+    except Exception:
+        return True
+
+
+def _find_handle_in_frames(page: Page, preferred_host=None):
+    """主文档 + 全部 iframe 里找滑块手柄（刷新后常落到别的 frame）。"""
+    hosts = []
+    if preferred_host is not None:
+        hosts.append(preferred_host)
+    hosts.append(page)
+    try:
+        hosts.extend(page.frames)
+    except Exception:
+        pass
+    seen: set[int] = set()
+    for host in hosts:
+        hid = id(host)
+        if hid in seen:
+            continue
+        seen.add(hid)
+        for sel in _HANDLE_SELECTORS:
+            try:
+                el = host.query_selector(sel)
+            except Exception:
+                continue
+            if _handle_visible(el):
+                return el
+    return _find_first(page, _HANDLE_SELECTORS)
 
 
 def solve_slider_captcha(page: Page, max_attempts: int = 4) -> bool:
@@ -247,25 +298,14 @@ def solve_slider_captcha(page: Page, max_attempts: int = 4) -> bool:
             print(f"[captcha] 距离异常 {distance}")
             _cjy_report(pic_id)
             continue
-        # 手柄可能在 frame 内
         handle = None
-        try:
-            for sel in _HANDLE_SELECTORS:
-                handle = host.query_selector(sel)
-                if handle:
-                    try:
-                        if handle.is_visible():
-                            break
-                    except Exception:
-                        break
-                handle = None
-        except Exception:
-            handle = None
-        if not handle:
-            handle = _find_first(page, _HANDLE_SELECTORS)
+        for _wait in range(8):
+            handle = _find_handle_in_frames(page, host)
+            if handle:
+                break
+            time.sleep(0.4)
         if not handle:
             print("[captcha] 找不到滑块手柄")
-            # 整页截图时仍可能拖不动 → 报错返分后重试
             _cjy_report(pic_id)
             time.sleep(2)
             continue

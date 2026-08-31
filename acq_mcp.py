@@ -18,7 +18,7 @@ Authors: liuqiaodongdong and Grok (https://github.com/liuqiaodongdong · xAI)
   - 国际线 #13     intl_collect                        —— 本地直跑(OpenAlex→OA/NBER/Sci-Hub/CARSI) → PDF
   - Elsevier 订阅线 els_collect                        —— 本地官方 API + API key → 全文 XML 转 MD
 辅助：setup_status(部署引导) / chaojiying_score / list_sources。
-产物统一落 corpus/<批次>/，merged_metadata.csv 跨源去重喂 0131。
+产物统一落 corpus/<批次>/，merged_metadata.csv 跨源去重。
 
 新流程请用 CLI：status → prepare → cnki-list → cnki / els / intl。
 详见仓库 AGENTS.md 与 ~/.grok/skills/gleaner/。
@@ -37,7 +37,7 @@ from mcp.server.fastmcp import FastMCP
 mcp = FastMCP("gleaner")  # 物尽其用 Gleaner
 
 PROJECT_ROOT = Path(__file__).parent
-LOCAL_CORPUS = PROJECT_ROOT / "corpus"   # 主力机语料目录(喂 0131)
+LOCAL_CORPUS = PROJECT_ROOT / "corpus"   # 主力机语料目录
 
 
 def _proxy_server() -> str:
@@ -68,7 +68,7 @@ def _proxy_server() -> str:
 
 
 def _refresh_merged():
-    """跨源(中英)去重归一，刷新 corpus/merged_metadata.csv(喂 0131)。失败不阻断采集。"""
+    """跨源(中英)去重归一，刷新 corpus/merged_metadata.csv。失败不阻断采集。"""
     try:
         from acq.normalize_corpus import merge_corpus
         return str(merge_corpus(LOCAL_CORPUS))
@@ -502,7 +502,7 @@ def list_sources():
              "modes": ["doi→直链"], "access": "公网OA(Unpaywall/DOAJ)",
              "tool": "intl_collect", "guard": _guard_info("oa")},
             {"name": "scihub", "type": "download", "status": "ready",
-             "modes": ["doi→SciHub镜像"], "access": "公网(绕Clash直连)",
+             "modes": ["doi→SciHub镜像"], "access": "公网直连（不走环境代理）",
              "tool": "intl_collect", "guard": _guard_info("scihub")},
             {"name": "carsi", "type": "download",
              "status": "ready" if L["intl"]["carsi_optional"]["ok"] else "optional_unconfigured",

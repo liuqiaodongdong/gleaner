@@ -3,7 +3,7 @@ import os
 import time
 from pathlib import Path
 os.environ["ACQ_HEADLESS"] = "0"
-os.environ["ACQ_BROWSER_CHANNEL"] = ""   # 用自带 chromium，避开系统 Clash 代理
+os.environ["ACQ_BROWSER_CHANNEL"] = ""   # 用自带 chromium，不继承系统浏览器代理
 from browser import launch_browser       # 复用现有浏览器层
 from acq.cookie_store import CookieStore
 

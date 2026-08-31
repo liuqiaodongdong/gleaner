@@ -104,6 +104,7 @@ def test_login_hint_mentions_login_py(capsys):
     out = capsys.readouterr().out
     assert "login.py" in out
     assert "ACQ_BROWSER_CHANNEL" in out or "msedge" in out
+    assert "超级鹰" in out
 
 
 def test_score_prints_result(tmp_path, monkeypatch, capsys):

@@ -3,5 +3,4 @@ requests>=2.31
 mcp>=1.0
 lxml>=5.0
 pandas>=2.0
-ddddocr>=1.5
 pytest>=8.0

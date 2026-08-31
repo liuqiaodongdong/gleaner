@@ -87,12 +87,12 @@ def cmd_sources(root: Path) -> int:
                 "name": "cnki",
                 "type": "paper",
                 "status": "ready" if L["cnki"]["cnki_collect_ready"] else "needs_setup",
-                "modes": ["keyword", "pro", "tiered L1-L4 (cnki_prepare→LY刊滤)"],
+                "modes": ["keyword", "pro", "tiered L1-L4 (prepare→LY刊滤)"],
                 "access": "主力机本地经代理(机构权限)",
-                "tool": "cnki_collect / cnki_list / cnki_prepare",
+                "tool": "cnki / cnki-list / prepare",
                 "ready": L["cnki"]["cnki_collect_ready"],
                 "note": (
-                    "分级：Agent 拓展概念组→cnki_prepare→level=L1..L4；"
+                    "分级：Agent 拓展概念组→prepare→level=L1..L4；"
                     "白名单 acq/data/cnki_journal_tiers.json"
                 ),
             },
@@ -102,7 +102,7 @@ def cmd_sources(root: Path) -> int:
                 "status": "ready",
                 "modes": ["keyword"],
                 "access": "公网API(mailto必填)",
-                "tool": "intl_collect",
+                "tool": "intl",
                 "note": "发现层，不直接下文",
             },
             {
@@ -111,7 +111,7 @@ def cmd_sources(root: Path) -> int:
                 "status": "ready",
                 "modes": ["doi→直链"],
                 "access": "公网OA(Unpaywall/DOAJ)",
-                "tool": "intl_collect",
+                "tool": "intl",
                 "guard": _guard_info("oa"),
             },
             {
@@ -119,8 +119,8 @@ def cmd_sources(root: Path) -> int:
                 "type": "download",
                 "status": "ready",
                 "modes": ["doi→SciHub镜像"],
-                "access": "公网(绕Clash直连)",
-                "tool": "intl_collect",
+                "access": "公网直连（不走环境代理）",
+                "tool": "intl",
                 "guard": _guard_info("scihub"),
             },
             {
@@ -133,7 +133,7 @@ def cmd_sources(root: Path) -> int:
                 ),
                 "modes": ["doi→机构订阅"],
                 "access": "CARSI认人不认IP，主力机本地",
-                "tool": "intl_collect",
+                "tool": "intl",
                 "guard": _guard_info("carsi"),
             },
             {
@@ -142,11 +142,11 @@ def cmd_sources(root: Path) -> int:
                 "status": "ready" if L["elsevier"]["ready"] else "needs_setup",
                 "modes": ["title题名布尔+relevance+白名单tier→取全文转MD"],
                 "access": "主力机本地，Elsevier官方API+API key",
-                "tool": "els_collect",
+                "tool": "els",
                 "ready": L["elsevier"]["ready"],
                 "note": (
                     "白名单 acq/data/intl_journal_tiers.json；"
-                    "首次请 status / setup_status"
+                    "首次请 python gleaner_cli.py status"
                 ),
             },
         ],
@@ -171,10 +171,15 @@ def cmd_login_hint(_root: Path) -> int:
      set ACQ_BROWSER_CHANNEL=msedge
    PowerShell:
      $env:ACQ_BROWSER_CHANNEL = "msedge"
-3. 运行有头登录：
+3. 批次间重录必须带现有 cookies.json（加载后刷新会话，禁止冷启动）。
      python login.py
-4. 浏览器打开后完成机构/校园网访问知网；脚本会把会话写入 cookies.json。
-5. cookie 为短会话：换网络、换代理或过期后请重跑 login.py。
+   仅首次没有 cookie 时才允许：
+     set ACQ_ALLOW_COLD_LOGIN=1
+     python login.py
+   冷启动通常下不了全文，不要用它续批次。
+4. 检索页滑块由超级鹰 9602 自动解（需已配置 CJY_*）；过验证后才覆盖 cookies.json。
+   无需个人账号。缺超级鹰时请手拖滑块。
+5. cookie 为短会话：换网络、换代理或过期后请重跑 login.py（仍加载旧 cookie）。
 6. 登录后可用：
      python gleaner_cli.py status
    查看 cookies 是否就绪。
@@ -571,7 +576,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub = parser.add_subparsers(dest="command", required=True)
 
-    sub.add_parser("status", parents=[common], help="部署就绪检查（setup_status）")
+    sub.add_parser("status", parents=[common], help="部署就绪检查")
     sub.add_parser("sources", parents=[common], help="列出论文源与 guard 状态")
     sub.add_parser("score", parents=[common], help="查询超级鹰积分")
     sub.add_parser("login-hint", parents=[common], help="打印 CNKI 有头登录步骤")

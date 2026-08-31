@@ -78,7 +78,7 @@ CJY_SOFTID=your_softid
 ACQ_PROXY=http://127.0.0.1:PORT
 ```
 
-- **`ACQ_PROXY` 按你本机代理软件填写**（Clash / V2 等端口各不相同）。也可不写，程序会尝试读取 **Windows 系统代理**  
+- **`ACQ_PROXY` 按本机机构/校园网代理填写**（端口以客户端显示为准）。也可不写，程序会尝试读取 **Windows 系统代理**  
 - 若电脑已在校园网 / 机构 VPN 内、浏览器能直接下知网，通常**不必**再设 `ACQ_PROXY`  
 - 推荐设置 `GLEANER_ROOT` 指向本仓库根  
 - 历史 MCP 模板 [`.mcp.json.example`](.mcp.json.example) **仅作 env 键名参考**（DEPRECATED）  
@@ -180,7 +180,6 @@ Agent / 终端
 ## 底层脚本（调试用）
 
 ```bash
-python main.py 供应链 30
 python run_batch.py params.json
 python run_els_batch.py els_params.json
 python run_intl_batch.py intl_params.json

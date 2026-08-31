@@ -80,7 +80,7 @@ def launch_browser():
     """
     pw = sync_playwright().start()
     import os
-    # 无头/浏览器内核可由环境变量切换：MCP 无头跑默认 ACQ_HEADLESS=1 + 系统 Edge
+    # 无头/浏览器内核可由环境变量切换：CLI 采集默认 ACQ_HEADLESS=1 + 系统 Edge
     _headless = os.environ.get("ACQ_HEADLESS", "0") == "1"
     _channel = os.environ.get("ACQ_BROWSER_CHANNEL", "")  # "msedge"/"chrome"=系统浏览器; ""=playwright 自带 chromium
     _launch = dict(

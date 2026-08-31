@@ -1,4 +1,4 @@
-"""批量采集入口：从 UTF-8 JSON 读参数（避免命令行中文乱码，供 MCP/CLI 调用）。
+"""批量采集入口：从 UTF-8 JSON 读参数（避免命令行中文乱码，供 gleaner_cli 调用）。
 
 params.json 字段：
   keyword / topic   : 关键词模式

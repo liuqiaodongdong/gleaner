@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from acq.sources import els
 
@@ -39,6 +40,22 @@ def test_search_journal_parses_results():
                               date="2015-2026", count=25)
     assert [r["doi"] for r in rows] == ["10.1016/x", "10.1016/y"]
     assert rows[0]["journal"] == "J Public Econ" and rows[0]["year"] == "2024"
+    body = json.loads(sess.put_calls[0][1]["data"])
+    assert body["title"] == "tax"
+    assert "qs" not in body
+    assert body["display"]["sortBy"] == "relevance"
+    assert body["display"]["show"] == 25
+
+
+def test_search_journal_scope_qs_and_clamped_show():
+    sess = FakeSession(put_resp=FakeResp(200, jdata={"results": []}))
+    els.search_journal(sess, qs="tax AND evasion", pub="P", date="2020-2026",
+                       count=8, scope="qs", sort="date")
+    body = json.loads(sess.put_calls[0][1]["data"])
+    assert body["qs"] == "tax AND evasion"
+    assert "title" not in body
+    assert body["display"]["show"] == 10
+    assert body["display"]["sortBy"] == "date"
 
 
 def test_search_journal_http_error_returns_empty():

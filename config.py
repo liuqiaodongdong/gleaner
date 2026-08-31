@@ -7,8 +7,11 @@ COOKIES_FILE = BASE_DIR / "cookies.json"
 PAPERS_DIR = BASE_DIR / "output" / "papers"
 
 # Scraping parameters
-DELAY_PAGE = (2, 5)       # seconds, random range between page actions
-DELAY_DETAIL = (3, 8)     # seconds, random range after detail page
+# 无头批量任务可显式设置 ACQ_FAST=1，缩短外层节流等待；详情页内部仍保留
+# DOM/元数据加载等待，默认模式继续使用保守间隔。
+_FAST_MODE = _os.environ.get("ACQ_FAST", "0") == "1"
+DELAY_PAGE = (0.3, 1.0) if _FAST_MODE else (2, 5)
+DELAY_DETAIL = (0.3, 1.0) if _FAST_MODE else (3, 8)
 MAX_RETRIES = 3           # network retry count
 
 # CNKI URLs

@@ -4,6 +4,7 @@
 import json
 from pathlib import Path
 import requests
+from acq.sources.els_query import clamp_show
 from acq.sources.els_xml2md import xml_to_md
 
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
@@ -19,11 +20,19 @@ def make_session(api_key: str) -> requests.Session:
     return s
 
 
-def search_journal(session, *, qs, pub, date, count=25, sort="date", timeout=50) -> list:
-    """SD Search API V2：qs 布尔 + pub 精确刊名 + date 年份范围。
-    sort: 'date'(新→旧) 或 'relevance'(相关性,窄题更对题)。返回结果 dict 列表。"""
-    body = {"qs": qs, "pub": pub, "date": date,
-            "display": {"show": int(count), "sortBy": sort}}
+def search_journal(session, *, qs, pub, date, count=10, sort="relevance",
+                   scope="title", timeout=50) -> list:
+    """SD Search API V2 PUT：默认把布尔式放进 title（题名），按 relevance 排序。
+
+    scope='title'：题名检索，对应知网 SU / 接近 Scopus TITLE，避免全文 qs 下歪。
+    scope='qs'：全文（除参考文献），仅用户显式要求高召回时用。
+    sort: relevance（官方默认）| date。
+    count 会被收成 10/25/50/100。
+    """
+    field = "qs" if (scope or "").lower() == "qs" else "title"
+    sort_by = sort if sort in ("relevance", "date") else "relevance"
+    body = {field: qs, "pub": pub, "date": date,
+            "display": {"show": clamp_show(count), "sortBy": sort_by}}
     try:
         r = session.put(SEARCH_URL, headers={"Content-Type": "application/json",
                                              "Accept": "application/json"},

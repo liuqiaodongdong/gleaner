@@ -19,10 +19,12 @@ def _load_cookies(context: BrowserContext) -> None:
 def _on_new_page(new_page: Page) -> None:
     """新窗口/标签页打开时检测是否为验证码页。
 
-    注意：Playwright 同步模式下本回调在主线程串行执行，绝不能在此长时间 sleep，
-    否则会冻结整个脚本（曾因 5min 等手动循环导致多窗叠加卡死）。
-    策略：撞到 bar.cnki.net 拼图校验（自动解不了）→ 立即关窗快速放弃，
-    交给外层"重启轮转"续跑；老版 tianai 滑块 → 尝试自动解一次即返回。
+    注意：Playwright 同步模式下本回调在主线程串行执行，绝不能在此长时间 sleep/打码，
+    否则会与 expect_download / expect_page 死锁（曾因 5min 等手动 + 超长超级鹰导致卡死）。
+    策略：
+      - 下载场景的 bar.cnki 拼图：只标记、不关窗、不在此打码 → 由 downloader 主流程超级鹰解码
+      - 搜索页 tianai 滑块：短时超级鹰（与历史行为一致）
+      - ACQ_MANUAL_CAPTCHA=1：拼图窗保持打开供手拖
     """
     try:
         new_page.wait_for_load_state("domcontentloaded", timeout=8000)
@@ -36,27 +38,27 @@ def _on_new_page(new_page: Page) -> None:
     is_captcha = (
         "verify" in url
         or "captcha" in url.lower()
+        or "bar.cnki.net" in url
         or title == "安全验证"
         or "拼图校验" in title
     )
     if not is_captcha:
         return
     print(f"[browser] 检测到验证码窗口: url={url[:80]} title={title}")
-    # bar.cnki.net 拼图校验
-    if "bar.cnki.net" in url or "拼图校验" in title:
+    is_puzzle = "bar.cnki.net" in url or "拼图校验" in title
+    if is_puzzle:
         import os as _os
         if _os.environ.get("ACQ_MANUAL_CAPTCHA") == "1":
-            # 手动模式(刷新会话用)：保持窗口打开，等人工拖动解，绝不阻塞/关窗
             print("[browser] 拼图校验：请在弹出窗口手动拖动解决(手动模式,不自动关窗)")
             return
-        # 自动模式：自动无法解且会拖慢，直接关窗放弃，靠重启轮转继续
-        print("[browser] 拼图校验(自动无法解)，跳过本窗，靠重启轮转续跑")
+        # 不关窗、不在回调里打码：留给 downloader._maybe_solve_captcha_on_pages
+        print("[browser] 拼图校验：交由下载主流程超级鹰解码（回调不阻塞）")
         try:
-            new_page.close()
+            new_page.context._acq_pending_captcha = True  # type: ignore[attr-defined]
         except Exception:
             pass
         return
-    # 其它(老版 tianai 滑块)：尝试自动解一次，不阻塞等手动
+    # 其它(搜索页 tianai 滑块)：短时自动解
     try:
         from captcha import solve_slider_captcha
         if solve_slider_captcha(new_page):
@@ -65,6 +67,8 @@ def _on_new_page(new_page: Page) -> None:
                 _save_cookies(new_page.context)
             except Exception:
                 pass
+        else:
+            print("[browser] 验证码自动解失败")
     except Exception as e:
         print(f"[browser] 自动解码异常: {e}")
 

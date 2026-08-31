@@ -4,6 +4,7 @@ import csv, datetime, json, random, re, sys, time
 from pathlib import Path
 from acq.sources import els
 from acq.els_config import get_api_key
+from acq.sources.els_query import normalize_els_query
 
 FIELDS = ["source", "doi", "title", "authors", "journal", "year", "level", "tier",
           "openaccess", "url", "file_path", "file_type", "file_xml"]
@@ -22,13 +23,37 @@ def _norm_title(s: str) -> str:
 
 def _write_search_md(out_dir: Path, params: dict, journals: list):
     lines = ["# Elsevier 检索记录", "",
-             f"- qs: `{params.get('qs','')}`",
+             f"- title/qs 布尔式: `{params.get('qs','')}`",
+             f"- scope: `{params.get('scope', 'title')}`（title=题名；qs=全文，易下歪）",
+             f"- sort: `{params.get('sort', 'relevance')}`",
              f"- date_from: {params.get('date_from','')}",
              f"- num cap: {params.get('num')}  per_journal: {params.get('per_journal')}",
+             f"- 选刊: 相关度轮询（每刊最多 per_journal，避免名单前几本占满额度）",
              f"- 检索刊数: {len(journals)}", "", "## 检索的期刊"]
     for j in journals:
         lines.append(f"- [tier{j.get('tier')}] {j.get('name')} ({j.get('issn')}) {j.get('level','')}")
     (out_dir / "search.md").write_text("\n".join(lines), encoding="utf-8")
+
+
+def _round_robin_pick(buckets: list, num: int) -> list:
+    """各刊相关度列表轮询取篇，避免白名单前几本先填满 num。"""
+    seen, picked = set(), []
+    queues = [list(rows) for rows in buckets]
+    while len(picked) < num and any(queues):
+        progressed = False
+        for rows in queues:
+            if not rows or len(picked) >= num:
+                continue
+            r = rows.pop(0)
+            doi = r.get("doi")
+            if not doi or doi in seen:
+                continue
+            seen.add(doi)
+            picked.append(r)
+            progressed = True
+        if not progressed:
+            break
+    return picked
 
 
 def run(params: dict, session) -> dict:
@@ -37,30 +62,37 @@ def run(params: dict, session) -> dict:
     for old in papers.glob("*"):  # 清旧批残留：重跑同名目录时避免混入上一版(不同论文)的 pdf/md/xml
         if old.suffix.lower() in (".pdf", ".md", ".xml"):
             old.unlink()
-    qs = params["qs"]
+    qs = normalize_els_query(params["qs"])
+    params["qs"] = qs
     date = f"{params.get('date_from', '2015')}-{datetime.date.today().year}"
-    per_journal = int(params.get("per_journal", 25))
+    per_journal = int(params.get("per_journal", 10))
     num = int(params.get("num", 25))
-    sort = params.get("sort", "date")          # 窄题可传 "relevance"
+    sort = params.get("sort", "relevance")
+    scope = params.get("scope", "title")
+    params["sort"] = sort
+    params["scope"] = scope
     journals = params.get("journals", [])
 
-    # 1) 逐刊检索 + 全局去重（DOI）
-    seen, picked = set(), []
+    # 1) 逐刊题名相关度检索，凑够候选再轮询取篇（避免名单前几本占满，也不扫完全部刊）
+    min_journals = min(len(journals), max(6, num))
+    buckets = []
     for j in journals:
-        if len(picked) >= num:
-            break
-        rows = els.search_journal(session, qs=qs, pub=j["name"], date=date, count=per_journal, sort=sort)
+        rows = els.search_journal(
+            session, qs=qs, pub=j["name"], date=date,
+            count=per_journal, sort=sort, scope=scope,
+        )
         # pub 是子串匹配——精确按刊名过滤，剔除同前缀的兄弟刊(如 World Development Perspectives)
         jn = _norm_title(j["name"])
         rows = [r for r in rows if _norm_title(r.get("journal", "")) == jn]
         for r in rows:
-            if r["doi"] in seen:
-                continue
-            seen.add(r["doi"])
-            r["level"] = j.get("level", ""); r["tier"] = j.get("tier", "")
-            picked.append(r)
+            r["level"] = j.get("level", "")
+            r["tier"] = j.get("tier", "")
+        buckets.append(rows)
         _sleep(0.5, 1.2)
-    picked = picked[:num]
+        n_hits = sum(len(b) for b in buckets)
+        if len(buckets) >= min_journals and n_hits >= num:
+            break
+    picked = _round_robin_pick(buckets, num)
 
     # 2) 取全文→MD
     rows_out = []

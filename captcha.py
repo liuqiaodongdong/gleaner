@@ -60,19 +60,35 @@ def chaojiying_score() -> str:
 
 
 def _captcha_present(page: Page) -> bool:
-    """是否有验证码：/verify 跳转 或 安全验证标题 或 可见验证码面板。"""
+    """是否有验证码：/verify、bar.cnki 拼图、安全验证标题 或 可见验证码面板。"""
+    # 已通过后的下载提示页（可能仍在 bar.cnki 域）不算验证码
     try:
-        u = page.url
-        if "verify" in u or "captcha" in u.lower():
+        body = page.inner_text("body", timeout=1000) or ""
+        if "验证完成" in body or "已进入下载" in body:
+            return False
+    except Exception:
+        pass
+    try:
+        u = page.url or ""
+        if "verify" in u or "captcha" in u.lower() or "bar.cnki.net" in u:
             return True
     except Exception:
         pass
     try:
-        if page.title() == "安全验证":
+        t = page.title() or ""
+        if t == "安全验证" or "拼图校验" in t:
             return True
     except Exception:
         pass
-    for sel in (".verify-img-panel", "#verify-bar-box", ".verifybox", ".verify-mask"):
+    for sel in (
+        ".verify-img-panel",
+        "#verify-bar-box",
+        ".verifybox",
+        ".verify-mask",
+        ".slide-verify",
+        ".captcha-slider",
+        "[class*='slide'][class*='verify']",
+    ):
         el = page.query_selector(sel)
         if el:
             try:
@@ -115,8 +131,63 @@ def _human_like_drag(page: Page, slider, distance: float) -> None:
     time.sleep(1)
 
 
+_PANEL_SELECTORS = (
+    ".tencent-captcha-dy__image-area",  # bar.cnki 2026 腾讯拼图背景区
+    ".tencent-captcha-dy__verify-bg-img",
+    ".verify-img-panel",
+    ".slide-verify-block",
+    ".captcha_image",
+    ".captcha-img",
+    "#captcha-box img",
+    ".verifybox-bottom .verify-img-panel",
+    "canvas.verify-img",
+    ".nc_scale",  # 少数阿里系滑块底图容器
+)
+
+_HANDLE_SELECTORS = (
+    ".tencent-captcha-dy__slider-block",  # bar.cnki 2026 腾讯拼图滑块
+    ".verify-move-block",
+    ".verify-bar-area .verify-move-block",
+    ".slider-btn",
+    ".slide-verify-slider-mask-item",
+    ".btn_slide",
+    ".nc_iconfont.btn_slide",
+    "[class*='slider'][class*='btn']",
+    ".verify-slide-block",
+)
+
+
+def _find_first(page: Page, selectors: tuple[str, ...]):
+    for sel in selectors:
+        try:
+            el = page.query_selector(sel)
+            if el and el.is_visible():
+                return el
+        except Exception:
+            continue
+    return None
+
+
+def _find_panel_in_frames(page: Page):
+    """主文档 + iframe 里找拼图面板（bar.cnki 偶发嵌 frame）。"""
+    panel = _find_first(page, _PANEL_SELECTORS)
+    if panel:
+        return page, panel
+    for frame in page.frames:
+        if frame == page.main_frame:
+            continue
+        for sel in _PANEL_SELECTORS:
+            try:
+                el = frame.query_selector(sel)
+                if el and el.is_visible():
+                    return frame, el
+            except Exception:
+                continue
+    return page, None
+
+
 def solve_slider_captcha(page: Page, max_attempts: int = 4) -> bool:
-    """检测并用超级鹰 9602 解 CNKI 滑块。无验证码返回 True。"""
+    """检测并用超级鹰 9602 解 CNKI 滑块/拼图校验。无验证码返回 True。"""
     if not _captcha_present(page):
         return True
     for attempt in range(max_attempts):
@@ -124,25 +195,38 @@ def solve_slider_captcha(page: Page, max_attempts: int = 4) -> bool:
             print("[captcha] 验证码已消失 ✓")
             return True
         print(f"[captcha] 超级鹰识别中 (尝试 {attempt + 1}/{max_attempts})...")
-        try:
-            page.wait_for_selector(".verify-img-panel", timeout=10000)
-        except Exception:
-            print("[captcha] 验证码面板渲染超时")
-        time.sleep(1.0)
-        panel = page.query_selector(".verify-img-panel")
-        if not panel:
+        # 等面板出现（主文档或 iframe）
+        panel = None
+        host = page
+        for _wait in range(10):
+            host, panel = _find_panel_in_frames(page)
+            if panel:
+                break
             if not _captcha_present(page):
-                print("[captcha] 验证码已消失（面板不在）✓")
+                print("[captcha] 验证码已消失（等待中）✓")
                 return True
-            print("[captcha] 找不到 .verify-img-panel，重试")
-            time.sleep(2)
-            continue
-        try:
-            img = panel.screenshot(type="jpeg")
-        except Exception as e:
-            print(f"[captcha] 面板截图失败: {e}")
-            time.sleep(1)
-            continue
+            time.sleep(1.0)
+        if not panel:
+            # 兜底：整页截图给超级鹰（DOM 选择器对不上时）
+            print("[captcha] 找不到面板，改用整页截图")
+            try:
+                page.screenshot(path="debug_captcha_nopanel.png", full_page=False)
+                print("[captcha] 无面板诊断图已保存 debug_captcha_nopanel.png")
+            except Exception:
+                pass
+            try:
+                img = page.screenshot(type="jpeg", full_page=False)
+            except Exception as e:
+                print(f"[captcha] 整页截图失败: {e}")
+                time.sleep(2)
+                continue
+        else:
+            try:
+                img = panel.screenshot(type="jpeg")
+            except Exception as e:
+                print(f"[captcha] 面板截图失败: {e}")
+                time.sleep(1)
+                continue
         res = _cjy_solve(img, 9602)
         print(f"[captcha] 超级鹰: err_no={res.get('err_no')} pic_str={res.get('pic_str')}")
         if res.get("err_no") != 0:
@@ -163,10 +247,28 @@ def solve_slider_captcha(page: Page, max_attempts: int = 4) -> bool:
             print(f"[captcha] 距离异常 {distance}")
             _cjy_report(pic_id)
             continue
-        handle = page.query_selector(".verify-move-block, .verify-bar-area .verify-move-block, .slider-btn")
+        # 手柄可能在 frame 内
+        handle = None
+        try:
+            for sel in _HANDLE_SELECTORS:
+                handle = host.query_selector(sel)
+                if handle:
+                    try:
+                        if handle.is_visible():
+                            break
+                    except Exception:
+                        break
+                handle = None
+        except Exception:
+            handle = None
+        if not handle:
+            handle = _find_first(page, _HANDLE_SELECTORS)
         if not handle:
             print("[captcha] 找不到滑块手柄")
-            return False
+            # 整页截图时仍可能拖不动 → 报错返分后重试
+            _cjy_report(pic_id)
+            time.sleep(2)
+            continue
         print(f"[captcha] 拖拽距离 {distance:.0f}px")
         _human_like_drag(page, handle, distance)
         time.sleep(2.5)
@@ -176,6 +278,11 @@ def solve_slider_captcha(page: Page, max_attempts: int = 4) -> bool:
         print("[captcha] 拖动后仍在验证页，报错返分 + 刷新重试")
         _cjy_report(pic_id)
         rb = page.query_selector(".verify-refresh, [class*='refresh']")
+        if not rb:
+            try:
+                rb = host.query_selector(".verify-refresh, [class*='refresh']")
+            except Exception:
+                rb = None
         if rb:
             try:
                 rb.click()
@@ -183,4 +290,9 @@ def solve_slider_captcha(page: Page, max_attempts: int = 4) -> bool:
                 pass
         time.sleep(2)
     print("[captcha] 超级鹰多次失败")
+    try:
+        page.screenshot(path="debug_captcha_fail.png", full_page=False)
+        print("[captcha] 失败截图已保存 debug_captcha_fail.png URL=" + (page.url or "")[:80])
+    except Exception as e:
+        print(f"[captcha] 失败截图保存失败: {e}")
     return False

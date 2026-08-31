@@ -1,9 +1,18 @@
+# DEPRECATED: Gleaner 不再通过 MCP 暴露。
+# 下列 env 键名仍可用于 .env 或系统环境，供 gleaner_cli.py 读取。
+# 新用法: python gleaner_cli.py status|prepare|cnki-list|cnki|els|intl
+# Skill: ~/.grok/skills/gleaner/
+#
+# 注意：本文件为「示例/键名清单」。真实 JSON 客户端配置请勿再挂 acq_mcp.py。
+# 若需合法 JSON，可忽略本文件顶部注释行，仅保留下方对象（仅作迁移参考）。
+
 {
   "mcpServers": {
     "gleaner": {
+      "_comment": "LEGACY — do not enable. timeout=1800 is a known defect.",
       "type": "stdio",
       "command": "C:/Path/To/python.exe",
-      "args": ["C:/Path/To/gleaner-mcp/acq_mcp.py"],
+      "args": ["C:/Path/To/gleaner/acq_mcp.py"],
       "env": {
         "ELSEVIER_API_KEY": "your_elsevier_api_key_here",
         "CJY_USER": "your_chaojiying_username",

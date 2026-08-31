@@ -1,3 +1,7 @@
+"""legacy MCP：Elsevier 工具注册与签名。
+
+生产入口已迁至 gleaner_cli.py；本文件仅保留 acq_mcp 注册回归。
+"""
 import inspect
 import acq_mcp
 
@@ -15,3 +19,4 @@ def test_els_collect_params_annotated():
     assert params["query"].annotation is str
     assert params["tier"].annotation is str
     assert "year_from" in params and "per_journal" in params
+    assert "sort" in params and "scope" in params

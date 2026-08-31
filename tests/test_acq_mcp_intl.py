@@ -1,4 +1,7 @@
-# tests/test_acq_mcp_intl.py
+"""legacy MCP：国际/公共工具注册与签名。
+
+生产入口已迁至 gleaner_cli.py；本文件仅保留 acq_mcp 注册回归。
+"""
 import inspect
 import acq_mcp
 

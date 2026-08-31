@@ -119,6 +119,12 @@ ELSEVIER_APPLY = {
 
 
 def _elsevier() -> dict:
+    if (os.environ.get("ACQ_DISABLE_ELSEVIER") or "").strip() == "1":
+        return {
+            "ok": False,
+            "status": "disabled",
+            "hint": "Elsevier API 已在当前部署中禁用。",
+        }
     env = (os.environ.get("ELSEVIER_API_KEY") or "").strip()
     file_ok = False
     if ELS_KEY_FILE.exists():
@@ -231,7 +237,7 @@ def check_setup() -> dict:
             "title": "录入 CNKI cookies（推荐）",
             "action": "在项目目录执行: set ACQ_BROWSER_CHANNEL=msedge && python login.py ，完成后生成 cookies.json",
         })
-    if not els["ok"]:
+    if not els["ok"] and els.get("status") != "disabled":
         blockers.append({
             "id": "elsevier_key",
             "severity": "elsevier",

@@ -56,10 +56,24 @@ acq/data/.elsevier_key
 
 | 用途 | 接口 | 说明 |
 |------|------|------|
-| 检索 | ScienceDirect Search API V2 | `PUT https://api.elsevier.com/content/search/sciencedirect` |
+| 检索 | ScienceDirect Search API V2 | `PUT https://api.elsevier.com/content/search/sciencedirect`；默认写入 **title**（题名），`sortBy=relevance` |
 | 全文 | Article Retrieval | `GET .../content/article/doi/{doi}?view=FULL`，取 XML 再转 Markdown |
 
 请求头使用官方方式：`X-ELS-APIKey: <your_key>`（见 `acq/sources/els.py`）。
+
+### 检索规则（防下歪）
+
+V2 PUT **没有** `tak()` / `TITLE-ABS-KEY` 字段。官方题名限制用 `title`，全文才是 `qs`。本线默认 `title`。
+
+正确示例：`"supply chain" AND ("green transition" OR "green innovation")`
+
+或英文概念组（组内 OR、组间 AND）：
+
+```powershell
+python gleaner_cli.py els --concept-groups "[{\"name\":\"sc\",\"keywords\":[\"supply chain\"]},{\"name\":\"gt\",\"keywords\":[\"green transition\"]}]" --num 15 --tier 1+2
+```
+
+不要用纯中文、知网 `SU %=` 式、或默认全文 `qs`。高召回才加 `--scope qs`。
 
 ---
 

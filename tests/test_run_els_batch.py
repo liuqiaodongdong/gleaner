@@ -17,7 +17,7 @@ def _fake_md_download(session, doi, out_md, out_xml, *, timeout=90):
 
 def test_run_dedupes_and_writes_csv(tmp_path, monkeypatch):
     # 两刊各返回，含一个重复 DOI
-    def fake_search(session, *, qs, pub, date, count, sort="date", timeout=50):
+    def fake_search(session, *, qs, pub, date, count, sort="relevance", scope="title", timeout=50):
         if "Public" in pub:
             return [{"doi": "10.1016/a", "title": "A", "journal": pub, "year": "2024",
                      "openaccess": False, "pii": "", "authors": "X"}]
@@ -49,7 +49,7 @@ def test_run_dedupes_and_writes_csv(tmp_path, monkeypatch):
 
 def test_run_drops_sibling_journal(tmp_path, monkeypatch):
     # pub 子串匹配会带回兄弟刊；精确按刊名过滤应剔除 "World Development Perspectives"
-    def fake_search(session, *, qs, pub, date, count, sort="date", timeout=50):
+    def fake_search(session, *, qs, pub, date, count, sort="relevance", scope="title", timeout=50):
         return [{"doi": "10.1016/wd", "title": "Real", "journal": "World Development",
                  "year": "2024", "openaccess": False, "pii": "", "authors": ""},
                 {"doi": "10.1016/wdp", "title": "Sibling", "journal": "World Development Perspectives",
@@ -70,7 +70,7 @@ def test_run_drops_sibling_journal(tmp_path, monkeypatch):
 
 def test_run_clears_stale_artifacts(tmp_path, monkeypatch):
     # 重跑同名目录：上一版残留的 pdf/md/xml 应被清掉，只剩本次产物
-    def fake_search(session, *, qs, pub, date, count, sort="date", timeout=50):
+    def fake_search(session, *, qs, pub, date, count, sort="relevance", scope="title", timeout=50):
         return [{"doi": "10.1016/new", "title": "N", "journal": pub, "year": "2024",
                  "openaccess": False, "pii": "", "authors": ""}]
     monkeypatch.setattr(R.els, "search_journal", fake_search)
@@ -93,7 +93,7 @@ def test_norm_title_strips_country_suffix():
 
 
 def test_run_respects_num_cap(tmp_path, monkeypatch):
-    def fake_search(session, *, qs, pub, date, count, sort="date", timeout=50):
+    def fake_search(session, *, qs, pub, date, count, sort="relevance", scope="title", timeout=50):
         return [{"doi": f"10.1016/{pub[:2]}{i}", "title": "T", "journal": pub,
                  "year": "2024", "openaccess": False, "pii": "", "authors": ""}
                 for i in range(20)]
@@ -108,3 +108,13 @@ def test_run_respects_num_cap(tmp_path, monkeypatch):
               "out": str(out)}
     res = R.run(params, session=object())
     assert res["downloaded"] == 5     # 命中 num 上限即停
+    dois = [r["doi"] for r in csv_rows(out / "metadata.csv")]
+    # 轮询：不应被第一本刊的 20 篇占满
+    assert any(d.startswith("10.1016/Aa") for d in dois)
+    assert any(d.startswith("10.1016/Bb") for d in dois)
+
+
+def test_round_robin_pick_interleaves():
+    a = [{"doi": "a1"}, {"doi": "a2"}, {"doi": "a3"}]
+    b = [{"doi": "b1"}, {"doi": "b2"}]
+    assert [r["doi"] for r in R._round_robin_pick([a, b], 4)] == ["a1", "b1", "a2", "b2"]

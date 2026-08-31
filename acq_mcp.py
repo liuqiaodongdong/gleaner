@@ -1,4 +1,15 @@
-"""物尽其用 Gleaner —— 机构学术资源采集 MCP，跑在主力机(本地 stdio)，CC 直连。
+"""【LEGACY · 勿用于生产】Gleaner 已改为 Skill + gleaner_cli.py。
+
+本文件仅保留供对照/旧测试。新集成请使用:
+  python gleaner_cli.py status|prepare|cnki-list|cnki|els|intl
+  用户 Skill: ~/.grok/skills/gleaner/
+
+硬超时 timeout=1800 是已知缺陷，不会在此修复。
+
+---
+（以下为历史说明，勿再按 MCP 接入）
+
+物尽其用 Gleaner —— 机构学术资源采集 MCP，跑在主力机(本地 stdio)。
 
 Authors: liuqiaodongdong and Grok (https://github.com/liuqiaodongdong · xAI)
 
@@ -9,15 +20,8 @@ Authors: liuqiaodongdong and Grok (https://github.com/liuqiaodongdong · xAI)
 辅助：setup_status(部署引导) / chaojiying_score / list_sources。
 产物统一落 corpus/<批次>/，merged_metadata.csv 跨源去重喂 0131。
 
-【Agent 铁律】用户首次使用或准备采集前，先调 setup_status；
-若对应线 ready=false，必须按 next_steps_for_user 引导用户申请/填写凭据，
-禁止在未配置时硬跑采集。详见仓库 AGENTS.md。
-
-CNKI 分级流程（推荐）：
-  Agent 做关键词同义发散与概念分组
-  → cnki_prepare(topic, concept_groups)  # 确定性生成 L1–L4 + LY 刊滤
-  → cnki_collect(level="L1", search_md=..., num=N) 或 cnki_list(...)
-  无分级时仍可用 cnki_collect(query=..., pro=False/True) 兼容旧调用。
+新流程请用 CLI：status → prepare → cnki-list → cnki / els / intl。
+详见仓库 AGENTS.md 与 ~/.grok/skills/gleaner/。
 """
 import base64
 import csv
@@ -367,7 +371,8 @@ def intl_collect(query: str, num: int = 25, sources=None, year_from: str = "",
 
 @mcp.tool()
 def els_collect(query: str, num: int = 25, tier: str = "1+2", year_from: str = "2015",
-                per_journal: int = 25, out_name: str = ""):
+                per_journal: int = 10, out_name: str = "", sort: str = "relevance",
+                scope: str = "title"):
     """检索学校订阅的 Elsevier/ScienceDirect【白名单经济/管理刊】并取全文(转MD)。
 
     主力机本地执行：Elsevier **官方** Developer API + API key
@@ -377,20 +382,26 @@ def els_collect(query: str, num: int = 25, tier: str = "1+2", year_from: str = "
     缺 key 时返回 setup_incomplete 与 apply_steps；首次请先 setup_status。
 
     Args:
-        query: SD 专业检索式(qs 布尔)，如 '("digital economy" OR digitalization) AND (innovation OR patent)'。
-               可用 acq.sources.els_query.build_qs(概念组) 生成；普通短语亦可。
+        query: 英文布尔式，默认写入题名 title。例: '("digital economy" OR digitalization) AND innovation'。
+               也可用 acq.sources.els_query.build_qs(英文概念组)。不要丢中文词或裸 qs 全文。
         num: 全局目标篇数上限
         tier: 检索的白名单档位 "1"/"1+2"/"1+2+3"(1=顶级/A+++/A++,2=A+,3=ABS等)
         year_from: 年份下限(如 "2020")
-        per_journal: 每刊取回上限
+        per_journal: 每刊取回上限（默认 10）
         out_name: 批次目录名(默认按 query 自动生成)
+        sort: relevance（默认）或 date
+        scope: title（默认，防下歪）或 qs（全文）
     返回 JSON：发现数/下载数/本地目录/标题/merged_metadata。
     """
     from acq.setup_check import preflight
     bad = preflight("elsevier")
     if bad:
         return json.dumps(bad, ensure_ascii=False, indent=2)
-    from acq.sources.els_query import load_tiers, select_journals
+    from acq.sources.els_query import load_tiers, normalize_els_query, select_journals
+    try:
+        query = normalize_els_query(query)
+    except ValueError as exc:
+        return json.dumps({"ok": False, "error": str(exc)}, ensure_ascii=False)
     journals = select_journals(load_tiers(), tier)
     if not journals:
         return json.dumps({"query": query, "tier": tier, "found": 0,
@@ -399,7 +410,9 @@ def els_collect(query: str, num: int = 25, tier: str = "1+2", year_from: str = "
     out_dir = LOCAL_CORPUS / batch
     LOCAL_CORPUS.mkdir(parents=True, exist_ok=True)
     params = {"qs": query, "journals": journals, "date_from": year_from,
-              "per_journal": int(per_journal), "num": int(num), "out": str(out_dir)}
+              "per_journal": int(per_journal), "num": int(num),
+              "sort": sort or "relevance", "scope": scope or "title",
+              "out": str(out_dir)}
     pfile = LOCAL_CORPUS / "_els_params.json"
     pfile.write_text(json.dumps(params, ensure_ascii=False), encoding="utf-8")
 
@@ -497,7 +510,7 @@ def list_sources():
              "tool": "intl_collect", "guard": _guard_info("carsi")},
             {"name": "elsevier", "type": "paper",
              "status": "ready" if L["elsevier"]["ready"] else "needs_setup",
-             "modes": ["qs专业检索+白名单tier→取全文转MD"],
+             "modes": ["title题名布尔+relevance+白名单tier→取全文转MD"],
              "access": "主力机本地，Elsevier官方API+API key", "tool": "els_collect",
              "ready": L["elsevier"]["ready"],
              "note": "白名单 acq/data/intl_journal_tiers.json；首次请 setup_status"},

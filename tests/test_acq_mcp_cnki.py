@@ -1,4 +1,7 @@
-"""Gleaner MCP CNKI 工具注册与 prepare/分级解析。"""
+"""legacy MCP：CNKI 工具注册与 prepare/分级解析。
+
+生产入口已迁至 gleaner_cli.py；本文件仅保留 acq_mcp 分发与注册的回归。
+"""
 from __future__ import annotations
 
 import inspect

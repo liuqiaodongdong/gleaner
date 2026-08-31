@@ -13,6 +13,7 @@ acq/data/.elsevier_key
 
 # --- 运行产物 / 运行时状态 ---
 corpus/
+keyword_workspace/
 output/
 out_intl*/
 spare-setup/
@@ -36,6 +37,9 @@ __pycache__/
 .pytest_cache/
 .superpowers/
 .codex/
+
+# --- 开发过程文档（不进公开树）---
+docs/superpowers/
 
 # --- 系统杂项 ---
 .DS_Store

@@ -4,9 +4,9 @@
 
 ## 装机（仓库 ↔ Skill，必须成对）
 
-用户说「安装项目 / clone」或「安装 skill / 注册 skill」时，**两条路最后都要跑 `install-skill`**。只拷 SKILL.md 或只 clone 都不算装完。
+用户说「安装项目 / clone」或「安装 skill / 注册 skill / 安装这个 skill」时，**没有 `gleaner_cli.py` 就必须先 clone**。只拷 SKILL.md **不算装完**。
 
-1. 本机没有 `gleaner_cli.py`：  
+1. 本机没有 `gleaner_cli.py`（安装 skill 也走这一步）：  
    `git clone https://github.com/liuqiaodongdong/gleaner.git` → `pip install -r requirements.txt`
 2. 在仓库根：`python gleaner_cli.py install-skill`  
    会拷到 `~/.grok/skills/gleaner`、`~/.cursor/skills/gleaner`、`~/.codex/skills/gleaner`，并写入 `.gleaner_root`。

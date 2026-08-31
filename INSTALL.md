@@ -10,7 +10,7 @@ python gleaner_cli.py install-skill
 ```
 
 需要 **Python 3.11+**。采集入口是 `gleaner_cli.py`。  
-`install-skill` 把仓库内 `skill/gleaner/` 注册到 `~/.grok` / `~/.cursor` / `~/.codex`。用户若只说「安装 skill」，Agent 仍要先 clone 本仓库再跑这一步，不要只拷 SKILL.md。
+`install-skill` 把仓库内 `skill/gleaner/` 注册到 `~/.grok` / `~/.cursor` / `~/.codex`。用户若只说「安装 skill」，Agent 的**第一条命令必须是** `git clone https://github.com/liuqiaodongdong/gleaner.git`，不要只拷 SKILL.md。也可跑 `skill/gleaner/scripts/bootstrap.py`（没有仓库会自己 clone）。
 
 ## 配置
 

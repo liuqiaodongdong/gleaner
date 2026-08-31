@@ -38,7 +38,7 @@ python gleaner_cli.py install-skill
 
 需要 **Python 3.11+**。知网线建议 Windows + 系统 Edge。
 
-Agent 装机：用户说「安装项目」或「安装 skill」都走同一条——**先有仓库，再 `install-skill`**。只拷 `SKILL.md` 不够。详见 [`skill/gleaner/SKILL.md`](skill/gleaner/SKILL.md)。
+Agent 装机：用户说「安装 skill」也必须先 `git clone` 本仓库，再 `install-skill`。只拷 `SKILL.md` 不算安装。详见 [`skill/gleaner/SKILL.md`](skill/gleaner/SKILL.md)。
 
 ### 2. 准备账号（按需）
 

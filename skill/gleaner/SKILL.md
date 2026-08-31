@@ -2,17 +2,38 @@
 name: gleaner
 description: >
   学术文献采集（知网 CNKI / Elsevier / 国际 OA·SciHub）。
-  用仓库 gleaner_cli.py 跑 install-skill、status、login-hint、prepare、cnki-list、cnki、els、intl。
-  无 cookies.json 时 Agent 必须自己跑 python login.py（脚本内超级鹰 9602 自动过滑块并写盘），
-  不要让用户手拖、不要用浏览器工具抠 cookie、不要只打印 login-hint。
+  用户说「安装 skill / 注册 skill / 装 gleaner」时：必须先 git clone
+  https://github.com/liuqiaodongdong/gleaner.git ，再 pip 与
+  python gleaner_cli.py install-skill。只把 SKILL.md 拷到 ~/.cursor/skills 不算安装。
+  无 cookies.json 时 Agent 必须自己跑 python login.py（脚本内超级鹰自动过滑块）。
   Use when: /gleaner、下知网、采文献、cnki、elsevier、国际论文、gleaner 采集、
-  安装 gleaner、安装 skill、注册 skill、clone gleaner、
-  录 cookie、录入 cookie、登录知网、login.py、超级鹰、cookies.json。
+  安装 gleaner、安装 skill、安装这个 skill、注册 skill、clone gleaner、
+  录 cookie、登录知网、login.py、超级鹰、cookies.json。
 ---
 
 # Gleaner（Skill + CLI）
 
 用本机仓库统一 CLI 做三线学术文献采集。
+
+## 安装 skill = 先下载项目（禁止只拷 SKILL.md）
+
+用户说「安装 skill / 注册 skill / 装 gleaner」时，**第一条命令必须是 clone 仓库**。
+没有 `gleaner_cli.py` 就还没装完。只拷本文件到 `~/.cursor/skills/gleaner` **无效**。
+
+```powershell
+# 用户指定了目录就用那个；否则当前工作区下的 gleaner\
+git clone https://github.com/liuqiaodongdong/gleaner.git <dest>
+cd <dest>
+python -m pip install -r requirements.txt
+python gleaner_cli.py install-skill
+$env:GLEANER_ROOT = (Resolve-Path .).Path
+python gleaner_cli.py status
+```
+
+本机已有仓库：在仓库根跑 `python gleaner_cli.py install-skill`。  
+Skill 目录里已有脚本时：`python scripts/bootstrap.py`（没有仓库会自己 clone）。
+
+然后才能录 cookie、再采集。
 
 ## 录 cookie（Agent 自己做，不要问用户拖滑块）
 
@@ -25,34 +46,14 @@ description: >
 3. `login.py` **内部**用超级鹰 9602 过滑块并立刻写 `cookies.json`。Agent **不要**另调超级鹰 API、不要用浏览器工具抠 cookie。
 4. 终端出现 `已更新会话` 后重跑 `status`，再采。无个人知网账号。
 
-**仓库和 Skill 必须成对存在**：只拷 SKILL.md 采不了文献；只 clone 仓库、不注册 Skill，Agent 也找不到约定。下面两条路最后都要跑 `install-skill` 再 `status`。
-
-## 安装（仓库 ↔ Skill）
-
 官方仓库：https://github.com/liuqiaodongdong/gleaner.git  
 需要 **Python 3.11+**。知网线建议 Windows + 系统 Edge。
 
-### A. 用户说「安装项目 / clone gleaner / 装这个仓库」
-
-1. `git clone https://github.com/liuqiaodongdong/gleaner.git` 到用户指定目录；未指定则当前工作区旁的 `gleaner/`。
-2. `python -m venv .venv` 后激活，再 `pip install -r requirements.txt`。
-3. **立刻** `python gleaner_cli.py install-skill`（把 `skill/gleaner` 注册到 `~/.grok/skills/gleaner`、`~/.cursor/skills/gleaner`、`~/.codex/skills/gleaner`，并写入 `.gleaner_root`）。
-4. 当前会话设 `GLEANER_ROOT` 为仓库绝对路径。
-5. `python gleaner_cli.py status`。线未 ready → 配 `.env`；知网无 `cookies.json` → 仅首次 `ACQ_ALLOW_COLD_LOGIN=1` 后 `python login.py`。
-6. **不要**在未就绪时硬跑 `cnki` / `els` / `intl`。
-
-### B. 用户说「安装 skill / 注册 skill / 装 gleaner skill」
-
-1. 若本机没有含 `gleaner_cli.py` 的仓库：先走上面 A（clone + pip），**不要只拷 SKILL.md**。
-2. 仓库已在：在仓库根执行 `python gleaner_cli.py install-skill`。
-3. 设 `GLEANER_ROOT`，再 `status`，缺什么补什么。
-4. 包装脚本会读 Skill 目录里的 `.gleaner_root`；当前会话仍建议设环境变量。
+clone + `install-skill` 之后设 `GLEANER_ROOT`，再 `status`。线未 ready → 配 `.env`；无 cookie → Agent 自己跑 `login.py`。**不要**未就绪就硬采。
 
 ```powershell
 $env:GLEANER_ROOT = "<本仓库绝对路径>"
-python "$env:GLEANER_ROOT\gleaner_cli.py" install-skill
 python "$env:GLEANER_ROOT\gleaner_cli.py" status
-# 或
 pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 ```
 
@@ -109,7 +110,7 @@ Elsevier / 国际见 [references/workflows.md](references/workflows.md)。
 
 | 现象 | 处理 |
 |------|------|
-| 找不到 gleaner_cli.py / Skill 未注册 | clone 仓库 → `pip install -r requirements.txt` → `install-skill` → 设 `GLEANER_ROOT` |
+| 找不到 gleaner_cli.py / 用户说安装 skill | **先 clone 仓库**，再 pip + `install-skill`；禁止只拷 SKILL.md |
 | setup / ready=false | 按 status 的 next_steps 配代理、CJY、**cookies**、Elsevier Key；无 cookie 勿开 cnki |
 | cookie / 登录相关失败 | Agent 自己热启动 `python login.py`（仅首次 `ACQ_ALLOW_COLD_LOGIN=1`）；不要只跑 login-hint |
 | 子进程非 0 | 读 `corpus/*_run.log` 尾部，汇报 log 路径 |

@@ -19,11 +19,12 @@ function Find-GleanerRoot {
     }
     throw @"
 未找到 gleaner 仓库（没有 GLEANER_ROOT，也没有 .gleaner_root）。请先：
+  python `"$PSScriptRoot\bootstrap.py`"
+或：
   git clone https://github.com/liuqiaodongdong/gleaner.git
   cd gleaner
   python -m pip install -r requirements.txt
   python gleaner_cli.py install-skill
-或把 GLEANER_ROOT 设为含 gleaner_cli.py 的仓库根。
 "@
 }
 

@@ -259,6 +259,39 @@ def test_cnki_invokes_run_batch_keyword(tmp_path, monkeypatch, capsys):
     out = json.loads(capsys.readouterr().out)
     assert out["command"] == "cnki"
     assert out["mode"] == "keyword"
+    assert out["num"] == 3
+    assert out["num_randomized"] is False
+
+
+def test_cnki_omitted_num_rolls_between_40_and_60(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
+    monkeypatch.setattr(gleaner_cli.random, "randint", lambda a, b: 47)
+    with (
+        patch("acq.setup_check.preflight", return_value=None),
+        patch("gleaner_cli.run_logged", return_value=0),
+        patch(
+            "gleaner_cli.summarize_batch",
+            return_value={
+                "local_dir": "x",
+                "metadata_csv": "x",
+                "metadata_rows": 0,
+                "downloaded_files": 0,
+                "titles": [],
+            },
+        ),
+        patch("gleaner_cli._try_merge_corpus", return_value=""),
+    ):
+        code = gleaner_cli.main(
+            ["cnki", "--root", str(tmp_path), "--query", "x", "--out-name", "e"]
+        )
+    assert code == 0
+    params = json.loads(
+        (tmp_path / "corpus" / "_cli_cnki_params.json").read_text(encoding="utf-8")
+    )
+    assert params["num"] == 47
+    out = json.loads(capsys.readouterr().out)
+    assert out["num"] == 47
+    assert out["num_randomized"] is True
 
 
 def test_cnki_list_requires_query_without_level(tmp_path, monkeypatch, capsys):

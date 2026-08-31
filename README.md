@@ -136,8 +136,8 @@ python gleaner_cli.py prepare \
 
 # 2) 先题录看 TOTAL，再全文
 python gleaner_cli.py cnki-list --level L1 --search-md "<prepare 返回的 search_md>" --num 100
-# 全文必须分批：每批 40–60，同一 --out-name 续传；批间热启动 login.py
-python gleaner_cli.py cnki --level L1 --search-md "<search_md>" --num 50 --out-name demo_topic_L1
+# 全文必须分批：每批 40–60 随机（省略 --num），同一 --out-name 续传；批间热启动 login.py
+python gleaner_cli.py cnki --level L1 --search-md "<search_md>" --out-name demo_topic_L1
 
 # 兼容：无分级
 python gleaner_cli.py cnki --query "数字经济" --num 10 --out-name demo_cnki

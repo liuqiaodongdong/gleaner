@@ -9,10 +9,14 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import random
 import re
 import sys
 from pathlib import Path
 from typing import Any
+
+CNKI_BATCH_NUM_MIN = 40
+CNKI_BATCH_NUM_MAX = 60
 
 from acq.cli_support import (
     apply_credentials,
@@ -200,7 +204,8 @@ def cmd_login_hint(_root: Path) -> int:
    Agent 不要用浏览器工具自己抠 cookie，只跑 login.py。
    无需个人账号。缺超级鹰时请手拖，拖完脚本会立刻写盘。
 5. cookie 为短会话：换网络、换代理或过期后请重跑 login.py（仍加载旧 cookie）。
-   全文分批时：每批 40–60 篇、同一 --out-name；批间热启动 login.py，不要并行。
+   全文分批时：每批在 40–60 随机取一篇数（省略 --num 即可），同一 --out-name；
+   批间热启动 login.py，不要并行、不要每批都写死 50。
 6. 登录后可用：
      python gleaner_cli.py status
    查看 cookies 是否就绪。
@@ -266,7 +271,15 @@ def _cmd_cnki_dispatch(
     range_label = (getattr(args, "range_label", None) or "").strip()
     out_name = (getattr(args, "out_name", None) or "").strip()
     pro = bool(getattr(args, "pro", False))
-    num = int(getattr(args, "num", 20))
+    num = int(getattr(args, "num", 0) or 0)
+    num_randomized = False
+    if command == "cnki" and num <= 0:
+        num = random.randint(CNKI_BATCH_NUM_MIN, CNKI_BATCH_NUM_MAX)
+        num_randomized = True
+        print(
+            f"[gleaner] 本批全文篇数随机为 {num}（{CNKI_BATCH_NUM_MIN}–{CNKI_BATCH_NUM_MAX}）",
+            file=sys.stderr,
+        )
 
     extra: dict[str, Any] = {}
     try:
@@ -344,6 +357,8 @@ def _cmd_cnki_dispatch(
         ),
         **summary,
         **extra,
+        "num": num,
+        "num_randomized": num_randomized,
     }
     if level:
         result["query"] = params_query  # 分级也带回完整式，便于排查
@@ -570,7 +585,11 @@ def _add_cnki_args(p: argparse.ArgumentParser, *, default_num: int) -> None:
         "--num",
         type=int,
         default=default_num,
-        help=f"本批目标篇数（默认 {default_num}）。全文请分批 40–60，同一 --out-name 续传，不要一次填满 TOTAL",
+        help=(
+            f"本批目标篇数（默认 {default_num}；全文 0=在 "
+            f"{CNKI_BATCH_NUM_MIN}–{CNKI_BATCH_NUM_MAX} 随机，不要每批写死 50）。"
+            "同一 --out-name 续传，不要一次填满 TOTAL"
+        ),
     )
     p.add_argument(
         "--out-name",
@@ -644,7 +663,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_cnki = sub.add_parser(
         "cnki", parents=[common], help="CNKI 全文（run_batch.py，默认无硬超时）"
     )
-    _add_cnki_args(p_cnki, default_num=50)
+    _add_cnki_args(p_cnki, default_num=0)
 
     p_els = sub.add_parser(
         "els", parents=[common], help="Elsevier 白名单全文（run_els_batch.py，默认无硬超时）"

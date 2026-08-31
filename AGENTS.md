@@ -103,7 +103,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 1. **Agent** 根据研究方向做同义发散与概念分组（CLI 不做 LLM 拓展）。
 2. `python gleaner_cli.py prepare --topic ... --concept-groups '...'` → 写出 `keyword_workspace/<topic>/` 与 L1–L4 式子（含 `LY` 刊滤，白名单 `acq/data/cnki_journal_tiers.json`）。
 3. **先** `cnki-list --level L1 --search-md ... --num N` 看 TOTAL；够用再全文。  
-   **分批**：每批 `--num 40–60`（默认 50），**同一 `--out-name`** 续传；禁止一次拉满 TOTAL。批间热启动 `python login.py`，禁止并行开两个知网浏览器。后台跑 CLI，看 `corpus/*_run.log`，不要申请交互终端。
+   **分批**：每批篇数在 40–60 **随机**（省略 `--num` 即可，禁止每批写死 50），**同一 `--out-name`** 续传；禁止一次拉满 TOTAL。批间热启动 `python login.py`，禁止并行开两个知网浏览器。后台跑 CLI，看 `corpus/*_run.log`，不要申请交互终端。
 4. 产物在 `corpus/<批次>/`；过程日志见 `corpus/*_run.log`。结果少再升 L2→L3→L4（用户授权后）。
 
 概念组 JSON 示例：

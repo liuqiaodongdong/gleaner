@@ -2,28 +2,51 @@
 name: gleaner
 description: >
   学术文献采集（知网 CNKI / Elsevier / 国际 OA·SciHub）。
-  用仓库 gleaner_cli.py 跑 status、prepare、cnki-list、cnki、els、intl。
-  Use when: /gleaner、下知网、采文献、cnki、elsevier、国际论文、gleaner 采集。
+  用仓库 gleaner_cli.py 跑 install-skill、status、prepare、cnki-list、cnki、els、intl。
+  Use when: /gleaner、下知网、采文献、cnki、elsevier、国际论文、gleaner 采集、
+  安装 gleaner、安装 skill、注册 skill、clone gleaner。
 ---
 
 # Gleaner（Skill + CLI）
 
 用本机仓库统一 CLI 做三线学术文献采集。
 
-## 默认根目录
+**仓库和 Skill 必须成对存在**：只拷 SKILL.md 采不了文献；只 clone 仓库、不注册 Skill，Agent 也找不到约定。下面两条路最后都要跑 `install-skill` 再 `status`。
 
-优先级：`GLEANER_ROOT` 环境变量 → CLI `--root` → 仓库内 `gleaner_cli.py` 所在目录。详见 [references/env.md](references/env.md)。
+## 安装（仓库 ↔ Skill）
 
-把本目录复制到用户 Skill 后，请先设置 `GLEANER_ROOT` 指向克隆下来的仓库根。
+官方仓库：https://github.com/liuqiaodongdong/gleaner.git  
+需要 **Python 3.11+**。知网线建议 Windows + 系统 Edge。
+
+### A. 用户说「安装项目 / clone gleaner / 装这个仓库」
+
+1. `git clone https://github.com/liuqiaodongdong/gleaner.git` 到用户指定目录；未指定则当前工作区旁的 `gleaner/`。
+2. `python -m venv .venv` 后激活，再 `pip install -r requirements.txt`。
+3. **立刻** `python gleaner_cli.py install-skill`（把 `skill/gleaner` 注册到 `~/.grok/skills/gleaner`、`~/.cursor/skills/gleaner`、`~/.codex/skills/gleaner`，并写入 `.gleaner_root`）。
+4. 当前会话设 `GLEANER_ROOT` 为仓库绝对路径。
+5. `python gleaner_cli.py status`。线未 ready → 配 `.env`；知网无 `cookies.json` → 仅首次 `ACQ_ALLOW_COLD_LOGIN=1` 后 `python login.py`。
+6. **不要**在未就绪时硬跑 `cnki` / `els` / `intl`。
+
+### B. 用户说「安装 skill / 注册 skill / 装 gleaner skill」
+
+1. 若本机没有含 `gleaner_cli.py` 的仓库：先走上面 A（clone + pip），**不要只拷 SKILL.md**。
+2. 仓库已在：在仓库根执行 `python gleaner_cli.py install-skill`。
+3. 设 `GLEANER_ROOT`，再 `status`，缺什么补什么。
+4. 包装脚本会读 Skill 目录里的 `.gleaner_root`；当前会话仍建议设环境变量。
 
 ```powershell
 $env:GLEANER_ROOT = "<本仓库绝对路径>"
+python "$env:GLEANER_ROOT\gleaner_cli.py" install-skill
 python "$env:GLEANER_ROOT\gleaner_cli.py" status
 # 或
 pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 ```
 
-子命令：`status` | `sources` | `score` | `login-hint` | `prepare` | `cnki-list` | `cnki` | `els` | `intl`
+子命令：`install-skill` | `status` | `sources` | `score` | `login-hint` | `prepare` | `cnki-list` | `cnki` | `els` | `intl`
+
+## 默认根目录
+
+优先级：`GLEANER_ROOT` → CLI `--root` → Skill 目录 `.gleaner_root`（包装脚本）→ 仓库内 `gleaner_cli.py` 所在目录。详见 [references/env.md](references/env.md)。
 
 ## 铁律
 
@@ -70,6 +93,7 @@ Elsevier / 国际见 [references/workflows.md](references/workflows.md)。
 
 | 现象 | 处理 |
 |------|------|
+| 找不到 gleaner_cli.py / Skill 未注册 | clone 仓库 → `pip install -r requirements.txt` → `install-skill` → 设 `GLEANER_ROOT` |
 | setup / ready=false | 按 status 的 next_steps 配代理、CJY、**cookies**、Elsevier Key；无 cookie 勿开 cnki |
 | cookie / 登录相关失败 | `login-hint` → 热启动 `python login.py`（仅首次 `ACQ_ALLOW_COLD_LOGIN=1`） |
 | 子进程非 0 | 读 `corpus/*_run.log` 尾部，汇报 log 路径 |

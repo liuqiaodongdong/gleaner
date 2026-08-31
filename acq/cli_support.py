@@ -1,9 +1,10 @@
-# acq/cli_support.py — Gleaner CLI 共用：ROOT / 凭据 / 子进程日志 / 批次摘要
+# acq/cli_support.py — Gleaner CLI 共用：ROOT / 凭据 / Skill 安装 / 子进程日志 / 批次摘要
 from __future__ import annotations
 
 import csv
 import json
 import os
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -18,6 +19,18 @@ _ENV_KEYS = (
 )
 
 
+REPO_CLONE_URL = "https://github.com/liuqiaodongdong/gleaner.git"
+
+# 拷到用户目录后，包装脚本靠这个指针找仓库（本机路径，勿提交）
+SKILL_ROOT_MARKER = ".gleaner_root"
+
+SKILL_HOME_DESTS = (
+    (".grok", "skills", "gleaner"),
+    (".cursor", "skills", "gleaner"),
+    (".codex", "skills", "gleaner"),
+)
+
+
 def resolve_root(cli_root: str | None = None) -> Path:
     if cli_root and str(cli_root).strip():
         return Path(cli_root).expanduser().resolve()
@@ -25,6 +38,73 @@ def resolve_root(cli_root: str | None = None) -> Path:
     if env:
         return Path(env).expanduser().resolve()
     return DEFAULT_ROOT.resolve()
+
+
+def _user_home() -> Path:
+    override = (os.environ.get("GLEANER_SKILL_HOME") or "").strip()
+    if override:
+        return Path(override).expanduser().resolve()
+    return Path.home()
+
+
+def skill_source_dir(root: Path) -> Path:
+    return Path(root) / "skill" / "gleaner"
+
+
+def install_user_skill(root: Path, home: Path | None = None) -> dict:
+    """把仓库内 skill/gleaner 注册到 Grok / Cursor / Codex 用户 Skill 目录。
+
+    每份副本写入 .gleaner_root，指向本仓库，这样包装脚本不必依赖环境变量。
+    不覆盖已有 .env；若仓库还没有 .env 且存在 .env.example，则复制一份模板。
+    """
+    root = Path(root).expanduser().resolve()
+    src = skill_source_dir(root)
+    if not (src / "SKILL.md").is_file():
+        raise FileNotFoundError(
+            f"仓库内没有 Skill 源 {src / 'SKILL.md'}。"
+            f"请先 git clone {REPO_CLONE_URL}"
+        )
+    home = Path(home).expanduser().resolve() if home is not None else _user_home()
+    installed: list[str] = []
+    for parts in SKILL_HOME_DESTS:
+        dest = home.joinpath(*parts)
+        dest.parent.mkdir(parents=True, exist_ok=True)
+        if dest.exists():
+            shutil.rmtree(dest)
+        shutil.copytree(
+            src,
+            dest,
+            ignore=shutil.ignore_patterns(
+                SKILL_ROOT_MARKER, "__pycache__", "*.pyc"
+            ),
+        )
+        (dest / SKILL_ROOT_MARKER).write_text(str(root), encoding="utf-8")
+        installed.append(str(dest))
+
+    env_created = False
+    env_path = root / ".env"
+    env_example = root / ".env.example"
+    if not env_path.is_file() and env_example.is_file():
+        shutil.copyfile(env_example, env_path)
+        env_created = True
+
+    return {
+        "ok": True,
+        "command": "install-skill",
+        "gleaner_root": str(root),
+        "installed": installed,
+        "env_template_created": env_created,
+        "hint": (
+            "已写入各 Skill 目录的 .gleaner_root；当前会话仍建议设置 "
+            f"GLEANER_ROOT={root}"
+        ),
+        "next_steps_for_agent": [
+            f"当前会话设置 GLEANER_ROOT={root}",
+            "python gleaner_cli.py status",
+            "按 status.blockers 写 .env（CJY_* / ACQ_PROXY / ELSEVIER_API_KEY），不要回显密钥",
+            "知网无 cookies.json：仅首次 ACQ_ALLOW_COLD_LOGIN=1 后 python login.py",
+        ],
+    }
 
 
 def _parse_dotenv(text: str) -> dict[str, str]:

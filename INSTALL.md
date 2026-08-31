@@ -6,9 +6,11 @@
 git clone https://github.com/liuqiaodongdong/gleaner.git
 cd gleaner
 pip install -r requirements.txt
+python gleaner_cli.py install-skill
 ```
 
-需要 **Python 3.11+**。采集入口是 `gleaner_cli.py`。
+需要 **Python 3.11+**。采集入口是 `gleaner_cli.py`。  
+`install-skill` 把仓库内 `skill/gleaner/` 注册到 `~/.grok` / `~/.cursor` / `~/.codex`。用户若只说「安装 skill」，Agent 仍要先 clone 本仓库再跑这一步，不要只拷 SKILL.md。
 
 ## 配置
 
@@ -26,7 +28,7 @@ pip install -r requirements.txt
 python gleaner_cli.py status
 
 # 子命令
-python gleaner_cli.py prepare|cnki-list|cnki|els|intl|login-hint|sources|score
+python gleaner_cli.py install-skill|prepare|cnki-list|cnki|els|intl|login-hint|sources|score
 ```
 
-在 Grok 中安装用户 Skill：把仓库 `skill/gleaner/` 复制到 `~/.grok/skills/gleaner/`，并设置 `GLEANER_ROOT`。
+用户 Skill 用 `python gleaner_cli.py install-skill` 注册，不要手拷目录。当前会话设 `GLEANER_ROOT` 指向本仓库根。

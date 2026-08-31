@@ -15,6 +15,36 @@ _MIN_SEARCH_MD = """## L1 — top
 """
 
 
+def test_install_skill_cli(tmp_path, monkeypatch, capsys):
+    repo = tmp_path / "repo"
+    src = repo / "skill" / "gleaner"
+    src.mkdir(parents=True)
+    (src / "SKILL.md").write_text("# gleaner\n", encoding="utf-8")
+    (repo / "gleaner_cli.py").write_text("# stub\n", encoding="utf-8")
+    home = tmp_path / "home"
+    home.mkdir()
+    monkeypatch.setenv("GLEANER_ROOT", str(repo))
+    monkeypatch.setenv("GLEANER_SKILL_HOME", str(home))
+    code = gleaner_cli.main(["install-skill", "--root", str(repo)])
+    assert code == 0
+    data = json.loads(capsys.readouterr().out)
+    assert data["ok"] is True
+    assert data["command"] == "install-skill"
+    dest = home / ".grok" / "skills" / "gleaner"
+    assert (dest / "SKILL.md").is_file()
+    assert (dest / ".gleaner_root").read_text(encoding="utf-8") == str(repo.resolve())
+
+
+def test_install_skill_missing_source(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
+    monkeypatch.setenv("GLEANER_SKILL_HOME", str(tmp_path / "home"))
+    code = gleaner_cli.main(["install-skill", "--root", str(tmp_path)])
+    assert code == 1
+    data = json.loads(capsys.readouterr().out)
+    assert data["ok"] is False
+    assert data["error"] == "skill_source_missing"
+
+
 def test_status_prints_json(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
     fake = {"ok": True, "lines": {}, "blockers": [], "next_steps_for_user": []}

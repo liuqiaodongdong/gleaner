@@ -161,3 +161,52 @@ def test_resolve_tiered_expression_invalid_level(tmp_path):
 def test_resolve_tiered_expression_requires_search_or_topic(tmp_path):
     with pytest.raises(ValueError, match="search_md"):
         cs.resolve_tiered_expression(tmp_path, "L1")
+
+
+def _fake_skill_repo(tmp_path: Path, with_env_example: bool = True) -> Path:
+    repo = tmp_path / "repo"
+    src = repo / "skill" / "gleaner" / "scripts"
+    src.mkdir(parents=True)
+    (repo / "skill" / "gleaner" / "SKILL.md").write_text(
+        "# gleaner\n", encoding="utf-8"
+    )
+    (src / "gleaner.ps1").write_text("# wrapper\n", encoding="utf-8")
+    (repo / "gleaner_cli.py").write_text("# stub\n", encoding="utf-8")
+    if with_env_example:
+        (repo / ".env.example").write_text(
+            "CJY_USER=\nELSEVIER_API_KEY=\n", encoding="utf-8"
+        )
+    return repo
+
+
+def test_install_user_skill_copies_and_writes_marker(tmp_path):
+    repo = _fake_skill_repo(tmp_path)
+    home = tmp_path / "home"
+    result = cs.install_user_skill(repo, home=home)
+    assert result["ok"] is True
+    assert result["gleaner_root"] == str(repo.resolve())
+    assert result["env_template_created"] is True
+    assert (repo / ".env").read_text(encoding="utf-8").startswith("CJY_USER=")
+    for rel in cs.SKILL_HOME_DESTS:
+        dest = home.joinpath(*rel)
+        assert (dest / "SKILL.md").is_file()
+        assert (dest / "scripts" / "gleaner.ps1").is_file()
+        assert (dest / ".gleaner_root").read_text(encoding="utf-8") == str(
+            repo.resolve()
+        )
+        assert str(dest) in result["installed"]
+
+
+def test_install_user_skill_does_not_overwrite_env(tmp_path):
+    repo = _fake_skill_repo(tmp_path)
+    (repo / ".env").write_text("CJY_USER=keep_me\n", encoding="utf-8")
+    result = cs.install_user_skill(repo, home=tmp_path / "home")
+    assert result["env_template_created"] is False
+    assert (repo / ".env").read_text(encoding="utf-8") == "CJY_USER=keep_me\n"
+
+
+def test_install_user_skill_missing_src(tmp_path):
+    empty = tmp_path / "empty"
+    empty.mkdir()
+    with pytest.raises(FileNotFoundError, match="Skill 源"):
+        cs.install_user_skill(empty, home=tmp_path / "home")

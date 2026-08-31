@@ -11,6 +11,9 @@ acq/data/.elsevier_key
 # --- 本机旧配置（可删，勿提交）---
 .mcp.json
 
+# --- Skill 指向本机仓库的指针（install-skill 生成）---
+.gleaner_root
+
 # --- 运行产物 / 运行时状态 ---
 corpus/
 keyword_workspace/

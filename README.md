@@ -30,11 +30,15 @@ python -m venv .venv
 # source .venv/bin/activate
 
 pip install -r requirements.txt
+# 把 Skill 注册到 ~/.grok、~/.cursor、~/.codex（写入 .gleaner_root）
+python gleaner_cli.py install-skill
 # 若不用系统 Edge 跑知网，再执行：
 # playwright install chromium
 ```
 
 需要 **Python 3.11+**。知网线建议 Windows + 系统 Edge。
+
+Agent 装机：用户说「安装项目」或「安装 skill」都走同一条——**先有仓库，再 `install-skill`**。只拷 `SKILL.md` 不够。详见 [`skill/gleaner/SKILL.md`](skill/gleaner/SKILL.md)。
 
 ### 2. 准备账号（按需）
 
@@ -79,7 +83,7 @@ ACQ_PROXY=http://127.0.0.1:PORT
 - **`ACQ_PROXY` 按本机机构/校园网代理填写**（端口以客户端显示为准）。也可不写，程序会尝试读取 **Windows 系统代理**  
 - 若电脑已在校园网 / 机构 VPN 内、浏览器能直接下知网，通常**不必**再设 `ACQ_PROXY`  
 - 推荐设置 `GLEANER_ROOT` 指向本仓库根  
-- Grok 用户 Skill：把仓库内 `skill/gleaner/` 复制到 `~/.grok/skills/gleaner/`（包装脚本会解析 ROOT 并调用 CLI）
+- 用户 Skill：在仓库根跑 `python gleaner_cli.py install-skill`（不要手拷目录）
 
 ### 4. 知网登录（首次必做）
 
@@ -104,6 +108,7 @@ python gleaner_cli.py login-hint
 
 | 命令 | 作用 |
 |------|------|
+| `install-skill` | 把 `skill/gleaner` 注册到 Grok / Cursor / Codex，并写入 `.gleaner_root` |
 | `status` | 检查配置是否齐全，返回待办步骤（**建议先跑**） |
 | `prepare` | Agent 提供概念组 → 生成 L1–L4 专业检索式（`LY` 刊滤，不启浏览器） |
 | `cnki` | 知网全文；支持 `--level L1..L4` + `--search-md` 分级采集 |
@@ -151,14 +156,14 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 
 ### 安装用户 Skill
 
+在仓库根：
+
 ```powershell
-$dest = "$env:USERPROFILE\.grok\skills\gleaner"
-New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.grok\skills" | Out-Null
-Copy-Item -Recurse -Force skill\gleaner $dest
+python gleaner_cli.py install-skill
 $env:GLEANER_ROOT = (Resolve-Path .).Path
 ```
 
-复制到用户目录后必须设置 `GLEANER_ROOT`。也可用 `GLEANER_PYTHON` 指定解释器。
+会同时写入 `~/.grok/skills/gleaner`、`~/.cursor/skills/gleaner`、`~/.codex/skills/gleaner`，并在每份副本里放 `.gleaner_root` 指向本仓库。当前会话仍建议设 `GLEANER_ROOT`。也可用 `GLEANER_PYTHON` 指定解释器。
 
 ---
 
@@ -196,7 +201,7 @@ python run_intl_batch.py intl_params.json
 
 ```
 gleaner_cli.py       # 统一 CLI
-skill/gleaner/       # 用户 Skill（复制到 ~/.grok/skills/gleaner/）
+skill/gleaner/       # 用户 Skill 源（install-skill 注册到 ~/.grok / ~/.cursor / ~/.codex）
 acq/                 # 采集核心与各源 adapter
   cli_support.py     # ROOT / env / 子进程 / 摘要
   setup_check.py     # status 实现

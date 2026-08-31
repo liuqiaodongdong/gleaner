@@ -2,13 +2,24 @@
 
 你正在使用 **gleaner** 学术文献采集能力。入口是 **Skill + `gleaner_cli.py`**。
 
+## 装机（仓库 ↔ Skill，必须成对）
+
+用户说「安装项目 / clone」或「安装 skill / 注册 skill」时，**两条路最后都要跑 `install-skill`**。只拷 SKILL.md 或只 clone 都不算装完。
+
+1. 本机没有 `gleaner_cli.py`：  
+   `git clone https://github.com/liuqiaodongdong/gleaner.git` → `pip install -r requirements.txt`
+2. 在仓库根：`python gleaner_cli.py install-skill`  
+   会拷到 `~/.grok/skills/gleaner`、`~/.cursor/skills/gleaner`、`~/.codex/skills/gleaner`，并写入 `.gleaner_root`。
+3. 当前会话设 `GLEANER_ROOT` 为仓库绝对路径。
+4. 再 `status`；知网无 cookie 则仅首次 `ACQ_ALLOW_COLD_LOGIN=1` 后 `python login.py`。
+
 ## 根目录与 Skill
 
 | 项 | 说明 |
 |----|------|
 | 默认仓库根 | 见 `GLEANER_ROOT`；未设时用 `gleaner_cli.py` 所在仓库根或 CLI `--root` |
 | 环境变量 | `GLEANER_ROOT` 指向本仓库根（含 `gleaner_cli.py`） |
-| 用户 Skill | 仓库 `skill/gleaner/`，安装到 `~/.grok/skills/gleaner/` |
+| 用户 Skill | 仓库 `skill/gleaner/`；用 `install-skill` 注册到 `~/.grok` / `~/.cursor` / `~/.codex` |
 | 凭据 | 优先进程环境 / `GLEANER_ROOT/.env`；Elsevier 也可 `acq/data/.elsevier_key` |
 
 ```powershell
@@ -38,6 +49,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 | CNKI 分级建式 | `prepare` | 无（纯本地、不启浏览器） | Agent 先做关键词拓展 |
 | Elsevier | `els` | **官方** `ELSEVIER_API_KEY` 或 `acq/data/.elsevier_key` | 见下方官方申请流程 |
 | 国际 | `intl` | 公网（一般无需密钥） | CARSI cookie 可选 |
+| 注册 Skill | `install-skill` | 仓库内有 `skill/gleaner/SKILL.md` | clone + pip 之后立刻跑 |
 | 就绪检查 | `status` | — | 每次采集前 |
 | 源摘要 | `sources` | — | 可选 |
 | 超级鹰积分 | `score` | `CJY_*` | 排障 |

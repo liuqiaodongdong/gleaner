@@ -15,7 +15,19 @@ python "$env:GLEANER_ROOT\gleaner_cli.py" status
 python gleaner_cli.py --root "<本仓库绝对路径>" status
 ```
 
-包装脚本 `scripts/gleaner.ps1`：优先读 `GLEANER_ROOT`；若 Skill 仍在仓库的 `skill/gleaner/` 内，会向上查找 `gleaner_cli.py`。复制到 `~/.grok/skills/gleaner/` 后必须设置 `GLEANER_ROOT`。Python 解释器可用 `GLEANER_PYTHON` 指定，否则用 `python`。
+包装脚本 `scripts/gleaner.ps1` / `scripts/gleaner.sh` 找仓库的顺序：
+
+1. 环境变量 `GLEANER_ROOT`
+2. Skill 目录里的 `.gleaner_root`（`python gleaner_cli.py install-skill` 写入，指向本机仓库）
+3. 若 Skill 仍在仓库的 `skill/gleaner/` 内，向上查找 `gleaner_cli.py`
+
+复制到 `~/.grok/skills/gleaner/` 等用户目录后，没有 `.gleaner_root` 时必须设 `GLEANER_ROOT`。Python 解释器可用 `GLEANER_PYTHON` 指定。
+
+在仓库根执行一次即可同时注册到 Grok / Cursor / Codex：
+
+```powershell
+python gleaner_cli.py install-skill
+```
 
 ## 凭据键（硬门槛）
 

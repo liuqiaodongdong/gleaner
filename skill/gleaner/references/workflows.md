@@ -1,6 +1,6 @@
 # Gleaner 标准工作流
 
-默认在 `GLEANER_ROOT` 下执行。先 `status`，线 ready 再采。长任务读 `corpus/*_run.log`。
+默认在 `GLEANER_ROOT` 下执行。本机还没注册 Skill 时先 `python gleaner_cli.py install-skill`。先 `status`，线 ready 再采。长任务读 `corpus/*_run.log`。
 
 ```powershell
 $env:GLEANER_ROOT = "<本仓库绝对路径>"

@@ -1,8 +1,8 @@
-# gleaner_cli.py — Gleaner 统一 CLI（status / sources / score / login-hint / prepare / cnki-list / cnki / els / intl）
+# gleaner_cli.py — Gleaner 统一 CLI（install-skill / status / sources / score / login-hint / prepare / cnki-list / cnki / els / intl）
 """用法: python gleaner_cli.py <command> [options]
 
 全局: --root PATH  --json  --timeout SEC
-子命令: status | sources | score | login-hint | prepare | cnki-list | cnki | els | intl
+子命令: install-skill | status | sources | score | login-hint | prepare | cnki-list | cnki | els | intl
 """
 from __future__ import annotations
 
@@ -16,6 +16,7 @@ from typing import Any
 
 from acq.cli_support import (
     apply_credentials,
+    install_user_skill,
     load_credentials,
     resolve_root,
     resolve_tiered_expression,
@@ -48,6 +49,22 @@ def _try_merge_corpus(root: Path) -> str:
         return str(merge_corpus(root / "corpus"))
     except Exception as exc:
         return f"merge_skipped: {exc}"
+
+
+def cmd_install_skill(root: Path) -> int:
+    try:
+        payload = install_user_skill(root)
+    except FileNotFoundError as exc:
+        _print_json(
+            {
+                "ok": False,
+                "error": "skill_source_missing",
+                "message": str(exc),
+            }
+        )
+        return 1
+    _print_json(payload)
+    return 0
 
 
 def cmd_status(_root: Path) -> int:
@@ -576,6 +593,11 @@ def build_parser() -> argparse.ArgumentParser:
 
     sub = parser.add_subparsers(dest="command", required=True)
 
+    sub.add_parser(
+        "install-skill",
+        parents=[common],
+        help="把 skill/gleaner 注册到 ~/.grok、~/.cursor、~/.codex",
+    )
     sub.add_parser("status", parents=[common], help="部署就绪检查")
     sub.add_parser("sources", parents=[common], help="列出论文源与 guard 状态")
     sub.add_parser("score", parents=[common], help="查询超级鹰积分")
@@ -689,6 +711,8 @@ def main(argv: list[str] | None = None) -> int:
         pass
 
     cmd = args.command
+    if cmd == "install-skill":
+        return cmd_install_skill(root)
     if cmd == "status":
         return cmd_status(root)
     if cmd == "sources":

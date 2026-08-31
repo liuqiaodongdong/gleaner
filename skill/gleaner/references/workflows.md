@@ -51,7 +51,7 @@ $cli = "python `"$env:GLEANER_ROOT\gleaner_cli.py`""
    ```
 
 5. **按 TOTAL 决策**  
-   - 命中够用 → `cnki --level L1 ...`  
+   - 命中够用 → `cnki --level L1 --out-name <固定名> --until <TOTAL>`  
    - L1 很少且用户要更多 → **L2**（再 list，再 collect）  
    - L3/L4 仅在用户明确同意后使用（更宽、噪声更大）
 
@@ -74,7 +74,7 @@ $cli = "python `"$env:GLEANER_ROOT\gleaner_cli.py`""
 
 ```powershell
 python gleaner_cli.py cnki-list --query "数字经济" --num 50
-python gleaner_cli.py cnki --query "数字经济" --num 10
+python gleaner_cli.py cnki --query "数字经济" --out-name demo_cnki --until 10
 # 专业检索式: --pro --query 'SU%=数字经济 AND ...'
 ```
 

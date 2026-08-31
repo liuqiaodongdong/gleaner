@@ -119,6 +119,34 @@ def test_run_logged_append_writes_separator(tmp_path, monkeypatch):
     assert "line2" in text
 
 
+def test_run_logged_unsets_none_env_keys(tmp_path, monkeypatch):
+    captured: dict = {}
+
+    class FakePopen:
+        def __init__(self, *a, **k):
+            captured["env"] = k.get("env")
+            self.stdout = iter([])
+            self.returncode = 0
+
+        def wait(self, timeout=None):
+            return 0
+
+    monkeypatch.setenv("ACQ_ALLOW_COLD_LOGIN", "1")
+    monkeypatch.setenv("KEEP_ME", "yes")
+    monkeypatch.setattr(cs.subprocess, "Popen", FakePopen)
+    env = dict(os.environ)
+    env["ACQ_ALLOW_COLD_LOGIN"] = None
+    env["NEW_KEY"] = 1
+    code = cs.run_logged(
+        ["echo"], cwd=tmp_path, log_path=tmp_path / "t.log", env=env
+    )
+    assert code == 0
+    child = captured["env"]
+    assert "ACQ_ALLOW_COLD_LOGIN" not in child
+    assert child["KEEP_ME"] == "yes"
+    assert child["NEW_KEY"] == "1"
+
+
 def test_summarize_batch_counts(tmp_path):
     out = tmp_path / "batch"
     papers = out / "papers"

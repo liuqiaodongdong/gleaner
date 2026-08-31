@@ -173,7 +173,13 @@ def run_logged(
     log_path.parent.mkdir(parents=True, exist_ok=True)
     merged = dict(os.environ)
     if env:
-        merged.update(env)
+        # None 表示从子进程环境里删掉该键（update 删不掉父进程已有变量）
+        for key, val in env.items():
+            name = str(key)
+            if val is None:
+                merged.pop(name, None)
+            else:
+                merged[name] = str(val)
     mode = "a" if append else "w"
     with log_path.open(mode, encoding="utf-8", errors="replace") as logf:
         if append:

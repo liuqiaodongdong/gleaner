@@ -27,7 +27,6 @@ from acq.cli_support import (
 
 CNKI_BATCH_NUM_MIN = 40
 CNKI_BATCH_NUM_MAX = 60
-CNKI_SERIAL_MAX_ROUNDS = 30
 
 
 def _cnki_file_count(out_dir: Path) -> int:
@@ -41,7 +40,7 @@ def _run_login_warm(root: Path, log_path: Path) -> int:
     env = dict(os.environ)
     env["ACQ_BROWSER_CHANNEL"] = (env.get("ACQ_BROWSER_CHANNEL") or "msedge").strip()
     env["ACQ_HEADLESS"] = "0"
-    env.pop("ACQ_ALLOW_COLD_LOGIN", None)
+    env["ACQ_ALLOW_COLD_LOGIN"] = None
     print("[gleaner] 批间热启动 python login.py", file=sys.stderr)
     return run_logged(
         [sys.executable, str(root / "login.py")],
@@ -375,10 +374,8 @@ def _cmd_cnki_dispatch(
     serial_batches: list[int] = []
     login_between = 0
     if command == "cnki" and until > 0:
-        max_rounds = min(
-            CNKI_SERIAL_MAX_ROUNDS,
-            max(2, until // CNKI_BATCH_NUM_MIN + 4),
-        )
+        # 无新增会停；上限按「每批至少 1 篇」估，避免小 --num 被 40 篇公式提前截断
+        max_rounds = until + 4
         exit_code = 0
         for i in range(max_rounds):
             have = _cnki_file_count(out_dir)
@@ -425,8 +422,18 @@ def _cmd_cnki_dispatch(
         caj = summarize_batch(out_dir, file_glob="*.caj")
         summary["downloaded_files"] = summary["downloaded_files"] + caj["downloaded_files"]
 
+    downloaded = int(summary.get("downloaded_files") or 0)
+    until_reached = until <= 0 or downloaded >= until
+    if until > 0:
+        extra["until_reached"] = until_reached
+        if not until_reached:
+            print(
+                f"[gleaner] 未达目标：已有 {downloaded} < {until}",
+                file=sys.stderr,
+            )
+    ok = exit_code == 0 and until_reached
     result: dict[str, Any] = {
-        "ok": exit_code == 0,
+        "ok": ok,
         "exit_code": exit_code,
         "command": command,
         "query": params_query if not level else "",
@@ -443,7 +450,7 @@ def _cmd_cnki_dispatch(
     if level:
         result["query"] = params_query  # 分级也带回完整式，便于排查
     _print_json(result)
-    return 0 if exit_code == 0 else 1
+    return 0 if ok else 1
 
 
 def cmd_cnki_list(root: Path, args: argparse.Namespace) -> int:
@@ -650,7 +657,9 @@ def cmd_intl(root: Path, args: argparse.Namespace) -> int:
     return 0 if exit_code == 0 else 1
 
 
-def _add_cnki_args(p: argparse.ArgumentParser, *, default_num: int) -> None:
+def _add_cnki_args(
+    p: argparse.ArgumentParser, *, default_num: int, fulltext: bool = False
+) -> None:
     p.add_argument("--level", default="", help="分级 L1–L4；非空则走分级专业式")
     p.add_argument("--search-md", default="", dest="search_md", help="search.md 路径")
     p.add_argument("--topic", default="", help="无 search-md 时定位 keyword_workspace/<topic>")
@@ -666,9 +675,13 @@ def _add_cnki_args(p: argparse.ArgumentParser, *, default_num: int) -> None:
         type=int,
         default=default_num,
         help=(
-            f"本批目标篇数（默认 {default_num}；全文 0=在 "
-            f"{CNKI_BATCH_NUM_MIN}–{CNKI_BATCH_NUM_MAX} 随机，不要每批写死 50）。"
-            "同一 --out-name 续传；要采够请用 --until，不要一次填满 TOTAL"
+            f"本批目标篇数（默认 {default_num}"
+            + (
+                f"；0=在 {CNKI_BATCH_NUM_MIN}–{CNKI_BATCH_NUM_MAX} 随机，不要每批写死 50）。"
+                "同一 --out-name 续传；要采够请用 --until，不要一次填满 TOTAL"
+                if fulltext
+                else "）。题录本批条数"
+            )
         ),
     )
     p.add_argument(
@@ -743,7 +756,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_cnki = sub.add_parser(
         "cnki", parents=[common], help="CNKI 全文（run_batch.py，默认无硬超时）"
     )
-    _add_cnki_args(p_cnki, default_num=0)
+    _add_cnki_args(p_cnki, default_num=0, fulltext=True)
     p_cnki.add_argument(
         "--until",
         type=int,

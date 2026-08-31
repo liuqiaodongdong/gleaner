@@ -5,6 +5,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 import gleaner_cli
 
 _MIN_SEARCH_MD = """## L1 — top
@@ -609,7 +611,7 @@ def test_cnki_until_serial_runs_login_between_batches(tmp_path, monkeypatch, cap
                 "cmd": [str(x) for x in cmd],
                 "append": append,
                 "headless": None if env is None else env.get("ACQ_HEADLESS"),
-                "cold": None if env is None else ("ACQ_ALLOW_COLD_LOGIN" in env),
+                "cold": None if env is None else env.get("ACQ_ALLOW_COLD_LOGIN"),
             }
         )
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -653,7 +655,7 @@ def test_cnki_until_serial_runs_login_between_batches(tmp_path, monkeypatch, cap
     assert [c["append"] for c in batch_calls] == [False, True, True]
     assert len(login_calls) == 2
     assert all(c["headless"] == "0" for c in login_calls)
-    assert all(c["cold"] is False for c in login_calls)
+    assert all(c["cold"] is None for c in login_calls)
     out = json.loads(capsys.readouterr().out)
     assert out["until"] == 12
     assert out["serial_batches"] == [5, 5, 2]
@@ -661,6 +663,8 @@ def test_cnki_until_serial_runs_login_between_batches(tmp_path, monkeypatch, cap
     assert out["downloaded_files"] == 12
     assert out["num"] == 2
     assert out["num_randomized"] is False
+    assert out["until_reached"] is True
+    assert out["ok"] is True
 
 
 def test_cnki_until_login_fail_stops(tmp_path, monkeypatch, capsys):
@@ -706,6 +710,8 @@ def test_cnki_until_login_fail_stops(tmp_path, monkeypatch, capsys):
     assert out["login_between"] == 1
     assert out["serial_batches"] == [5]
     assert out["exit_code"] == 3
+    assert out["until_reached"] is False
+    assert out["ok"] is False
 
 
 def test_cnki_until_no_progress_stops_without_login(tmp_path, monkeypatch, capsys):
@@ -736,7 +742,7 @@ def test_cnki_until_no_progress_stops_without_login(tmp_path, monkeypatch, capsy
                 "80",
             ]
         )
-    assert code == 0
+    assert code != 0
     assert sum("run_batch.py" in c for c in calls) == 1
     assert sum("login.py" in c for c in calls) == 0
     out = json.loads(capsys.readouterr().out)
@@ -744,6 +750,8 @@ def test_cnki_until_no_progress_stops_without_login(tmp_path, monkeypatch, capsy
     assert len(out["serial_batches"]) == 1
     assert 40 <= out["serial_batches"][0] <= 60
     assert out["num_randomized"] is True
+    assert out["until_reached"] is False
+    assert out["ok"] is False
 
 
 def test_cnki_until_already_enough_skips_run(tmp_path, monkeypatch, capsys):
@@ -777,3 +785,70 @@ def test_cnki_until_already_enough_skips_run(tmp_path, monkeypatch, capsys):
     assert out["until"] == 10
     assert out["serial_batches"] == []
     assert out["downloaded_files"] == 12
+    assert out["until_reached"] is True
+    assert out["ok"] is True
+
+
+def test_cnki_until_small_num_keeps_going_past_old_round_cap(
+    tmp_path, monkeypatch, capsys
+):
+    """旧公式 until//40+4 会让 --num 1 --until 8 只跑 4 批。"""
+    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
+    calls: list[str] = []
+
+    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None, append=False):
+        calls.append(" ".join(str(x) for x in cmd))
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write("ok\n")
+        if "login.py" in calls[-1]:
+            return 0
+        papers = tmp_path / "corpus" / "e" / "papers"
+        papers.mkdir(parents=True, exist_ok=True)
+        have = len(list(papers.glob("*.pdf")))
+        (papers / f"p{have}.pdf").write_bytes(b"%PDF")
+        return 0
+
+    with (
+        patch("acq.setup_check.preflight", return_value=None),
+        patch("gleaner_cli.run_logged", side_effect=fake_run),
+        patch("gleaner_cli._try_merge_corpus", return_value=""),
+    ):
+        code = gleaner_cli.main(
+            [
+                "cnki",
+                "--root",
+                str(tmp_path),
+                "--query",
+                "x",
+                "--out-name",
+                "e",
+                "--num",
+                "1",
+                "--until",
+                "8",
+            ]
+        )
+    assert code == 0
+    assert sum("run_batch.py" in c for c in calls) == 8
+    assert sum("login.py" in c for c in calls) == 7
+    out = json.loads(capsys.readouterr().out)
+    assert out["until_reached"] is True
+    assert out["downloaded_files"] == 8
+    assert out["serial_batches"] == [1] * 8
+
+
+def test_cnki_list_rejects_until(tmp_path, monkeypatch):
+    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
+    with pytest.raises(SystemExit):
+        gleaner_cli.main(
+            [
+                "cnki-list",
+                "--root",
+                str(tmp_path),
+                "--query",
+                "x",
+                "--until",
+                "10",
+            ]
+        )

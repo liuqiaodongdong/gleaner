@@ -1,6 +1,6 @@
 # Elsevier 官方 API Key 申请指南
 
-本项目的 `els_collect` **只使用 Elsevier 官方 Developer API**（ScienceDirect Search + Article Retrieval），**不需要**爬 ScienceDirect 网页、不需要账号密码登录浏览器、也不要用第三方「Elsevier 破解 / 镜像」之类说法。
+本项目的 `els` 子命令 **只使用 Elsevier 官方 Developer API**（ScienceDirect Search + Article Retrieval），**不需要**爬 ScienceDirect 网页、不需要账号密码登录浏览器、也不要用第三方「Elsevier 破解 / 镜像」之类说法。
 
 官方入口（请以官网为准）：
 
@@ -30,13 +30,15 @@
 
 ### 3. 配置到本项目（二选一，勿提交到 git）
 
-**方式 A（推荐）—— MCP 环境变量**
+**方式 A（推荐）—— `.env`**
 
-在 Claude Code 等客户端的 `mcpServers.gleaner.env` 中：
+复制 `.env.example` 为 `GLEANER_ROOT/.env`，写入：
 
-```json
-"ELSEVIER_API_KEY": "粘贴你的API_Key"
+```env
+ELSEVIER_API_KEY=粘贴你的API_Key
 ```
+
+也可设同名系统/用户环境变量。
 
 **方式 B——本机文件**
 
@@ -48,7 +50,7 @@ acq/data/.elsevier_key
 
 内容仅为 key 本身一行。该路径已在 `.gitignore` 中。
 
-配置后请用户（或 Agent）再调一次 MCP 工具 **`setup_status`**，确认 `lines.elsevier.ready == true`。
+配置后请再跑 **`python gleaner_cli.py status`**，确认 `lines.elsevier.ready == true`。
 
 ---
 
@@ -106,6 +108,6 @@ python gleaner_cli.py els --concept-groups "[{\"name\":\"sc\",\"keywords\":[\"su
 > 要用 Elsevier 线，请申请**官方** API Key：  
 > 1. 用学校邮箱在 https://dev.elsevier.com/ 登录/注册  
 > 2. 打开 https://dev.elsevier.com/apikey/manage → Create API Key  
-> 3. 把 Key 填进 MCP 的 `ELSEVIER_API_KEY`，或写入 `acq/data/.elsevier_key`  
-> 4. 再运行 `setup_status` 确认就绪  
+> 3. 把 Key 写入 `.env` 的 `ELSEVIER_API_KEY`，或单行写入 `acq/data/.elsevier_key`  
+> 4. 再跑 `python gleaner_cli.py status` 确认就绪  
 > 详细步骤见项目 `docs/ELSEVIER_API.md`。

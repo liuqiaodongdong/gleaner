@@ -32,6 +32,8 @@ debug_*.jpg
 _recv_*.jpg
 
 # --- Python / 工具缓存 ---
+.venv/
+venv/
 __pycache__/
 *.pyc
 .pytest_cache/

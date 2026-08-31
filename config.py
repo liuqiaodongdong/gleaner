@@ -19,7 +19,7 @@ CNKI_SEARCH_URL = "https://kns.cnki.net/kns8s/defaultresult/index"
 CNKI_ADVANCED_URL = "https://kns.cnki.net/kns8s/AdvSearch?type=expert"  # 专业检索页（直接进入）
 
 # 超级鹰打码（验证码求解）—— 仅从环境变量读取，勿在仓库写入账号密码
-# 设置：CJY_USER / CJY_PASS / CJY_SOFTID（可写在 MCP env 或系统环境变量）
+# 设置：CJY_USER / CJY_PASS / CJY_SOFTID（可写在 .env 或系统环境变量）
 CHAOJIYING_USER = _os.environ.get("CJY_USER", "")
 CHAOJIYING_PASS = _os.environ.get("CJY_PASS", "")
 CHAOJIYING_SOFTID = _os.environ.get("CJY_SOFTID", "")

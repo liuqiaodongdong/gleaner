@@ -1,5 +1,5 @@
 # acq/setup_check.py —— 部署/凭据就绪检查（不打印密钥内容）
-"""供 MCP setup_status 与 agent 首次引导使用。"""
+"""供 gleaner_cli status 与 agent 首次引导使用。"""
 from __future__ import annotations
 
 import json
@@ -81,7 +81,7 @@ def _chaojiying() -> dict:
             "apply_url": "https://www.chaojiying.com/",
             "hint": (
                 "CNKI 验证码需要超级鹰。请注册并充值积分，创建软件 ID(softid)，"
-                "把 CJY_USER / CJY_PASS / CJY_SOFTID 写入 MCP 配置的 env（见 .mcp.json.example），"
+                "把 CJY_USER / CJY_PASS / CJY_SOFTID 写入 GLEANER_ROOT/.env（见 .env.example），"
                 "勿写入仓库。验证码类型使用 9602（水平滑块）。"
             ),
         }
@@ -90,7 +90,7 @@ def _chaojiying() -> dict:
         "status": "env_set",
         "user_set": True,
         "softid_set": True,
-        "hint": "超级鹰环境变量已配置（未校验账号是否有效；可用 chaojiying_score 查积分）",
+        "hint": "超级鹰环境变量已配置（未校验账号是否有效；可用 python gleaner_cli.py score 查积分）",
     }
 
 
@@ -106,8 +106,8 @@ ELSEVIER_APPLY = {
         "打开官方 Developer Portal：https://dev.elsevier.com/",
         "进入 My API Key / Create API Key：https://dev.elsevier.com/apikey/manage",
         "填写 Label（如 gleaner-local）；Website URL 本地可用 http://localhost（以页面校验为准）",
-        "复制生成的 API Key，配置到 MCP env 的 ELSEVIER_API_KEY，或单行写入 acq/data/.elsevier_key",
-        "再调用 setup_status，确认 lines.elsevier.ready=true",
+        "复制生成的 API Key，写入 .env 的 ELSEVIER_API_KEY，或单行写入 acq/data/.elsevier_key",
+        "再跑 python gleaner_cli.py status，确认 lines.elsevier.ready=true",
     ],
     "agent_rules": [
         "只引导用户申请 Elsevier 官方 API Key（dev.elsevier.com），不要推荐第三方 Key/镜像/破解",
@@ -165,12 +165,12 @@ def _carsi() -> dict:
             "ok": True,
             "status": "present",
             "path": str(CARSI_STATE),
-            "hint": "CARSI cookie 状态文件存在（intl_collect 的 carsi 源可用）",
+            "hint": "CARSI cookie 状态文件存在（intl --sources 含 carsi 时可用）",
         }
     return {
         "ok": False,
         "status": "missing",
-        "required_for": "intl_collect(sources 含 carsi) 时需要",
+            "required_for": "intl --sources 含 carsi 时需要",
         "hint": "可选。默认 OA/NBER/Sci-Hub 不需要。若要用机构库 CARSI，需在本机完成浏览器 SSO 登录并保存 acq/cookies/carsi/state.json",
     }
 
@@ -193,22 +193,22 @@ def check_setup() -> dict:
             "cookies": cnki_ck,
             "chaojiying": cjy,
             "proxy": {"ok": proxy_ok, "detail": proxy_detail},
-            "tools": ["cnki_collect", "cnki_list"],
+            "tools": ["cnki", "cnki-list"],
             "agent_note": (
-                "CNKI 全文(cnki_collect)：代理 + 超级鹰 为硬门槛；cookies(login.py) 强烈推荐。"
-                "题录(cnki_list)：主要需要代理/机构网。"
+                "CNKI 全文(cnki)：代理 + 超级鹰 为硬门槛；cookies(login.py) 强烈推荐。"
+                "题录(cnki-list)：主要需要代理/机构网。"
             ),
         },
         "elsevier": {
             "ready": bool(els["ok"]),
             "api_key": els,
-            "tools": ["els_collect"],
+            "tools": ["els"],
             "agent_note": "仅需 Elsevier API key；无需浏览器/cookies。",
         },
         "intl": {
             "ready": True,
             "carsi_optional": carsi,
-            "tools": ["intl_collect"],
+            "tools": ["intl"],
             "agent_note": "默认 OA/NBER/Sci-Hub 无需额外密钥；CARSI 可选。",
         },
     }
@@ -220,7 +220,7 @@ def check_setup() -> dict:
             "severity": "cnki",
             "title": "申请并配置超级鹰账号",
             "url": "https://www.chaojiying.com/",
-            "action": "注册→充值→创建软件得 softid→设置 CJY_USER/CJY_PASS/CJY_SOFTID 到 MCP env",
+            "action": "注册→充值→创建软件得 softid→把 CJY_USER/CJY_PASS/CJY_SOFTID 写入 .env",
         })
     if not proxy_ok:
         blockers.append({
@@ -270,12 +270,12 @@ def check_setup() -> dict:
             next_steps.append(f"[可选/{b['severity']}] {b['title']}。{b['action']}")
 
     if not next_steps:
-        next_steps.append("核心凭据已就绪。可调用 cnki_collect / els_collect / intl_collect。")
+        next_steps.append("核心凭据已就绪。可用 python gleaner_cli.py 跑 cnki / els / intl。")
     else:
         next_steps.insert(
             0,
             "【给 Agent】请把下列缺失项用清单展示给用户，协助申请/填写；"
-            "在对应线 ready=false 时不要强行采集该线，先完成配置再重跑 setup_status。",
+            "在对应线 ready=false 时不要强行采集该线，先完成配置再重跑 python gleaner_cli.py status。",
         )
 
     return {
@@ -285,11 +285,10 @@ def check_setup() -> dict:
         "lines": lines,
         "blockers": blockers,
         "next_steps_for_user": next_steps,
-        "how_to_configure_mcp": {
-            "template": str(ROOT / ".mcp.json.example"),
+        "how_to_configure": {
             "env_example": str(ROOT / ".env.example"),
             "readme": str(ROOT / "README.md"),
-            "note": "密钥只放 MCP env 或本机 gitignore 文件，不要写进仓库、不要回显密钥明文。",
+            "note": "密钥只放 GLEANER_ROOT/.env 或本机 gitignore 文件，不要写进仓库、不要回显密钥明文。",
         },
     }
 
@@ -312,7 +311,7 @@ def preflight(line: str) -> dict | None:
                 "cookies": L["cookies"],
             },
             "next_steps_for_user": s["next_steps_for_user"],
-            "hint": "请先调用 setup_status，按 next_steps_for_user 引导用户配置后再试 cnki_collect。",
+            "hint": "请先跑 python gleaner_cli.py status，按 next_steps_for_user 引导用户配置后再试 cnki。",
         }
     if line == "cnki_list":
         L = s["lines"]["cnki"]
@@ -324,7 +323,7 @@ def preflight(line: str) -> dict | None:
             "message": "CNKI 题录线需要可访问知网的代理/机构网。",
             "setup": {"proxy": L["proxy"], "cookies": L["cookies"]},
             "next_steps_for_user": s["next_steps_for_user"],
-            "hint": "请先配置 ACQ_PROXY 或系统代理，再调用 setup_status 确认。",
+            "hint": "请先配置 ACQ_PROXY 或系统代理，再跑 python gleaner_cli.py status 确认。",
         }
     if line in ("els", "elsevier", "els_collect"):
         L = s["lines"]["elsevier"]
@@ -336,6 +335,6 @@ def preflight(line: str) -> dict | None:
             "message": "Elsevier 线尚未就绪：缺少 API key。",
             "setup": {"api_key": L["api_key"]},
             "next_steps_for_user": s["next_steps_for_user"],
-            "hint": "请先调用 setup_status，引导用户申请 Elsevier API key 后再试 els_collect。",
+            "hint": "请先跑 python gleaner_cli.py status，引导用户申请 Elsevier API key 后再试 els。",
         }
     return None

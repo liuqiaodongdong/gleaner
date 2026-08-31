@@ -1,12 +1,20 @@
 # build_intl_tiers.py —— 从《总体期刊目录.xlsx》+ Elsevier Serial Title API 重建国际白名单 tier 文件
-import json, time, re, sys
+import json, os, time, re, sys
 from pathlib import Path
 import pandas as pd
 import requests
 from acq.els_config import get_api_key
 
-XLSX = r"C:\Users\laidh\Desktop\总体期刊目录.xlsx"
 OUT = Path(__file__).parent / "acq" / "data" / "intl_journal_tiers.json"
+
+
+def _xlsx_path(cli_path: str | None = None) -> str:
+    if cli_path and str(cli_path).strip():
+        return str(Path(cli_path).expanduser().resolve())
+    env = (os.environ.get("GLEANER_INTL_TIERS_XLSX") or "").strip()
+    if env:
+        return str(Path(env).expanduser().resolve())
+    raise SystemExit("请传入期刊目录 xlsx，或设置 GLEANER_INTL_TIERS_XLSX。")
 
 
 def tier_of(level: str) -> int:
@@ -25,7 +33,7 @@ def _is_intl(name: str) -> bool:
     return lat > cjk
 
 
-def build(xlsx: str = XLSX) -> dict:
+def build(xlsx: str) -> dict:
     df = pd.read_excel(xlsx, sheet_name="期刊目录", header=1)
     df.columns = ["name", "issn", "level", "discount"]
     df = df.dropna(subset=["issn"])
@@ -72,7 +80,7 @@ def build(xlsx: str = XLSX) -> dict:
 
 
 def main():
-    out = build()
+    out = build(_xlsx_path(sys.argv[1] if len(sys.argv) > 1 else None))
     OUT.parent.mkdir(parents=True, exist_ok=True)
     OUT.write_text(json.dumps(out, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"wrote {OUT} : {out['meta']['count']} journals "

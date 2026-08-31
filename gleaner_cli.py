@@ -200,6 +200,7 @@ def cmd_login_hint(_root: Path) -> int:
    Agent 不要用浏览器工具自己抠 cookie，只跑 login.py。
    无需个人账号。缺超级鹰时请手拖，拖完脚本会立刻写盘。
 5. cookie 为短会话：换网络、换代理或过期后请重跑 login.py（仍加载旧 cookie）。
+   全文分批时：每批 40–60 篇、同一 --out-name；批间热启动 login.py，不要并行。
 6. 登录后可用：
      python gleaner_cli.py status
    查看 cookies 是否就绪。
@@ -565,8 +566,18 @@ def _add_cnki_args(p: argparse.ArgumentParser, *, default_num: int) -> None:
         action="store_true",
         help="非分级时 query 视为专业检索式",
     )
-    p.add_argument("--num", type=int, default=default_num, help=f"目标篇数（默认 {default_num}）")
-    p.add_argument("--out-name", default="", dest="out_name", help="corpus 下批次目录名")
+    p.add_argument(
+        "--num",
+        type=int,
+        default=default_num,
+        help=f"本批目标篇数（默认 {default_num}）。全文请分批 40–60，同一 --out-name 续传，不要一次填满 TOTAL",
+    )
+    p.add_argument(
+        "--out-name",
+        default="",
+        dest="out_name",
+        help="corpus 下批次目录名；同一任务必须沿用，才能续传跳过已下",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -633,7 +644,7 @@ def build_parser() -> argparse.ArgumentParser:
     p_cnki = sub.add_parser(
         "cnki", parents=[common], help="CNKI 全文（run_batch.py，默认无硬超时）"
     )
-    _add_cnki_args(p_cnki, default_num=20)
+    _add_cnki_args(p_cnki, default_num=50)
 
     p_els = sub.add_parser(
         "els", parents=[common], help="Elsevier 白名单全文（run_els_batch.py，默认无硬超时）"

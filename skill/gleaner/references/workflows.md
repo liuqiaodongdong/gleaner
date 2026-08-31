@@ -55,13 +55,17 @@ $cli = "python `"$env:GLEANER_ROOT\gleaner_cli.py`""
    - L1 很少且用户要更多 → **L2**（再 list，再 collect）  
    - L3/L4 仅在用户明确同意后使用（更宽、噪声更大）
 
-6. **cnki 全文**
+6. **cnki 全文（必须分批）**
+
+   TOTAL 大也**不要**一次 `--num` 填满。每批 40–60 篇，固定 `--out-name`，已下载的会跳过。批与批之间热启动 `python login.py`。不要并行、不要申请交互终端。
 
    ```powershell
    python gleaner_cli.py cnki `
      --level L1 `
      --search-md "keyword_workspace/上市公司供应链绿色转型/2020_2026/search.md" `
-     --num 10
+     --num 50 `
+     --out-name "上市公司供应链绿色转型_L1"
+   # 本批结束后：python login.py（热启动）→ 同一 out-name 再开下一批
    ```
 
 7. **汇报**  

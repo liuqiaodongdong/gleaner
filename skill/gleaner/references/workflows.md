@@ -82,7 +82,9 @@ python gleaner_cli.py cnki --query "数字经济" --num 10
 
 **首次装机必须先录 cookie**，再 `cnki-list` / `cnki`。无 `cookies.json` 冷启动下不了全文，只会空烧超级鹰。
 
-仅第一次：`set ACQ_ALLOW_COLD_LOGIN=1` 后 `python login.py`。之后热启动，不要冷启动。失败时先 `python gleaner_cli.py login-hint`。无需个人知网账号。
+Agent **自己跑** `python login.py`：超级鹰 9602 在脚本里自动过滑块并写盘。不要只跑 `login-hint`，不要让用户手拖或从浏览器复制 cookie，不要另调超级鹰 API。
+
+仅第一次：`set ACQ_ALLOW_COLD_LOGIN=1` 后 `python login.py`。之后热启动，不要冷启动。无需个人知网账号。
 
 ---
 

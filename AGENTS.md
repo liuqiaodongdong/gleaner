@@ -11,7 +11,7 @@
 2. 在仓库根：`python gleaner_cli.py install-skill`  
    会拷到 `~/.grok/skills/gleaner`、`~/.cursor/skills/gleaner`、`~/.codex/skills/gleaner`，并写入 `.gleaner_root`。
 3. 当前会话设 `GLEANER_ROOT` 为仓库绝对路径。
-4. 再 `status`；知网无 cookie 则仅首次 `ACQ_ALLOW_COLD_LOGIN=1` 后 `python login.py`。
+4. 再 `status`；知网无 cookie 则 Agent **自己**跑 `login.py`（脚本内超级鹰自动过滑块）。仅首次加 `ACQ_ALLOW_COLD_LOGIN=1`。不要只跑 `login-hint`，不要让用户手拖。
 
 ## 根目录与 Skill
 
@@ -36,7 +36,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 3. 若用户要用的线 `ready=false`：
    - **用清晰清单展示给用户**（申请网址、要填哪些环境变量、本地命令）。
    - **协助用户完成配置**（写 `GLEANER_ROOT/.env`、写 `acq/data/.elsevier_key`）。
-   - **知网必须先有 `cookies.json`**：没有则 Agent **只跑** `login.py`（有头 Edge，超级鹰过滑块后立刻写盘并退出）。**不要**用浏览器工具自己抠 cookie。仅首次加 `ACQ_ALLOW_COLD_LOGIN=1`。**禁止**无 cookie 就跑 `cnki` / `cnki-list`（冷启动下不了全文，只会空烧超级鹰）。
+   - **知网必须先有 `cookies.json`**：没有则 Agent **自己启动** `login.py`（有头 Edge，**脚本内超级鹰自动过滑块并写盘**）。禁止只打印 `login-hint`、禁止让用户手拖或复制 cookie。仅首次加 `ACQ_ALLOW_COLD_LOGIN=1`。**禁止**无 cookie 就跑 `cnki` / `cnki-list`（冷启动下不了全文，只会空烧超级鹰）。
    - **不要**在未就绪时强行跑 `cnki` / `els` / `intl`（CLI 会返回 `setup_incomplete`）。
 4. 用户表示已配置后，**再跑一次** `status` 确认，再开始采集。
 

@@ -2,14 +2,28 @@
 name: gleaner
 description: >
   学术文献采集（知网 CNKI / Elsevier / 国际 OA·SciHub）。
-  用仓库 gleaner_cli.py 跑 install-skill、status、prepare、cnki-list、cnki、els、intl。
+  用仓库 gleaner_cli.py 跑 install-skill、status、login-hint、prepare、cnki-list、cnki、els、intl。
+  无 cookies.json 时 Agent 必须自己跑 python login.py（脚本内超级鹰 9602 自动过滑块并写盘），
+  不要让用户手拖、不要用浏览器工具抠 cookie、不要只打印 login-hint。
   Use when: /gleaner、下知网、采文献、cnki、elsevier、国际论文、gleaner 采集、
-  安装 gleaner、安装 skill、注册 skill、clone gleaner。
+  安装 gleaner、安装 skill、注册 skill、clone gleaner、
+  录 cookie、录入 cookie、登录知网、login.py、超级鹰、cookies.json。
 ---
 
 # Gleaner（Skill + CLI）
 
 用本机仓库统一 CLI 做三线学术文献采集。
+
+## 录 cookie（Agent 自己做，不要问用户拖滑块）
+
+`status` 里 `cookies.ok=false` 或用户说「登录 / 录 cookie」时：
+
+1. 先确认 `.env` 有 `CJY_USER` / `CJY_PASS` / `CJY_SOFTID`（没有则协助写好，再 `status`）。
+2. **Agent 自己启动**（不要只跑 `login-hint`，不要让用户手拖或从 DevTools 复制）：
+   - 首次无文件：`$env:ACQ_BROWSER_CHANNEL='msedge'; $env:ACQ_ALLOW_COLD_LOGIN='1'; python login.py`
+   - 已有文件（批间重录）：只设 `ACQ_BROWSER_CHANNEL=msedge`，再 `python login.py`
+3. `login.py` **内部**用超级鹰 9602 过滑块并立刻写 `cookies.json`。Agent **不要**另调超级鹰 API、不要用浏览器工具抠 cookie。
+4. 终端出现 `已更新会话` 后重跑 `status`，再采。无个人知网账号。
 
 **仓库和 Skill 必须成对存在**：只拷 SKILL.md 采不了文献；只 clone 仓库、不注册 Skill，Agent 也找不到约定。下面两条路最后都要跑 `install-skill` 再 `status`。
 
@@ -54,7 +68,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
    `python "$env:GLEANER_ROOT\gleaner_cli.py" status`  
    看 `lines.*.ready` / `blockers` / `next_steps_for_user`。线未 ready → 引导配置，**禁止硬采**。
 
-2. **知网先录 cookie**：`status` 里 `cookies.ok=false` 时 **禁止** 跑 `cnki` / `cnki-list`。Agent **只跑** `python login.py`（超级鹰过滑块后立刻写盘并退出）。**不要**用浏览器工具自己抠 cookie。仅第一次没有文件才加 `ACQ_ALLOW_COLD_LOGIN=1`。冷启动采集下不了全文，只会空烧超级鹰。
+2. **知网先录 cookie**：`status` 里 `cookies.ok=false` 时 **禁止** 跑 `cnki` / `cnki-list`。Agent **必须自己启动** `python login.py`（超级鹰在脚本里自动过滑块并写盘）。**禁止**：只打印 `login-hint` 就停、让用户手拖滑块、让用户从浏览器复制 cookie、用浏览器工具抠 cookie、另外调用超级鹰接口。仅第一次没有文件才加 `ACQ_ALLOW_COLD_LOGIN=1`。冷启动采集下不了全文，只会空烧超级鹰。
 
 3. **知网全文必须分批**：`cnki-list` 看到 TOTAL 后，**禁止**一次 `--num` 拉满（如 200+）。每批篇数在 **40–60 随机**（省略 `--num` 由 CLI 抽；**禁止每批都写 50**）。**同一 `--out-name`** 续传（已下的会跳过）。批与批之间热启动 `python login.py` 换新 cookie，**禁止**同时开两个知网浏览器。不要申请「交互终端」；后台跑 CLI，进度看 `corpus/*_run.log`。
 
@@ -97,6 +111,6 @@ Elsevier / 国际见 [references/workflows.md](references/workflows.md)。
 |------|------|
 | 找不到 gleaner_cli.py / Skill 未注册 | clone 仓库 → `pip install -r requirements.txt` → `install-skill` → 设 `GLEANER_ROOT` |
 | setup / ready=false | 按 status 的 next_steps 配代理、CJY、**cookies**、Elsevier Key；无 cookie 勿开 cnki |
-| cookie / 登录相关失败 | `login-hint` → 热启动 `python login.py`（仅首次 `ACQ_ALLOW_COLD_LOGIN=1`） |
+| cookie / 登录相关失败 | Agent 自己热启动 `python login.py`（仅首次 `ACQ_ALLOW_COLD_LOGIN=1`）；不要只跑 login-hint |
 | 子进程非 0 | 读 `corpus/*_run.log` 尾部，汇报 log 路径 |
 | 0 命中 | 升 level、放宽年份或改 query；先 list 再 collect |

@@ -12,12 +12,14 @@ ELS_KEY_FILE = ROOT / "acq" / "data" / ".elsevier_key"
 CARSI_STATE = ROOT / "acq" / "cookies" / "carsi" / "state.json"
 
 _LOGIN_FIRST = (
-    "首次无 cookie：set ACQ_BROWSER_CHANNEL=msedge && set ACQ_ALLOW_COLD_LOGIN=1 && python login.py。"
+    "【Agent 自己执行，不要让用户拖滑块】"
+    "set ACQ_BROWSER_CHANNEL=msedge && set ACQ_ALLOW_COLD_LOGIN=1 && python login.py。"
+    "脚本内超级鹰 9602 自动过滑块并写 cookies.json。不要只跑 login-hint，不要另调超级鹰 API。"
     "冷启动通常下不了全文，仅用于第一次建会话。"
 )
 _LOGIN_WARM = (
-    "续批次：不要设 ACQ_ALLOW_COLD_LOGIN，直接 python login.py 加载现有 cookies.json（热启动）。"
-    "过验证（拼图消失或检索框出现）立刻写入。详见 python gleaner_cli.py login-hint。"
+    "续批次：不要设 ACQ_ALLOW_COLD_LOGIN，直接 python login.py（热启动）。"
+    "超级鹰仍由 login.py 自动解。过验证立刻写入。"
 )
 
 
@@ -289,8 +291,9 @@ def check_setup() -> dict:
     else:
         next_steps.insert(
             0,
-            "【给 Agent】请把下列缺失项用清单展示给用户，协助申请/填写；"
-            "CNKI 无 cookies.json 时禁止跑 cnki / cnki-list（先 login-hint，避免超级鹰空跑）。"
+            "【给 Agent】密钥类缺失项用清单协助用户填写（勿回显明文）。"
+            "CNKI 无 cookies.json：禁止 cnki / cnki-list；Agent 自己跑 python login.py"
+            "（超级鹰在脚本内自动过滑块），不要只跑 login-hint、不要让用户手拖。"
             "对应线 ready=false 时不要强行采集，先完成配置再重跑 python gleaner_cli.py status。",
         )
 

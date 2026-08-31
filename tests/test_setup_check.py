@@ -31,6 +31,10 @@ def test_check_setup_shape(monkeypatch, tmp_path):
     assert not ck_b.get("optional")
     assert "空烧" in ck_b["action"] or "禁止" in ck_b["action"]
     assert any("Agent" in x for x in s["next_steps_for_user"])
+    joined = " ".join(s["next_steps_for_user"])
+    assert "login.py" in joined
+    assert "自己跑" in joined or "自己启动" in joined or "自己执行" in joined
+    assert "先 login-hint" not in joined
     els_b = next(b for b in s["blockers"] if b["id"] == "elsevier_key")
     assert "dev.elsevier.com" in els_b["url"]
     assert els_b.get("apply_steps")

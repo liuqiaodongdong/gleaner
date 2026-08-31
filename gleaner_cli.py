@@ -185,28 +185,30 @@ def cmd_score(_root: Path) -> int:
 
 def cmd_login_hint(_root: Path) -> int:
     text = """\
-【CNKI 有头登录 · 获取 cookies.json】
+【CNKI 有头登录 · Agent 必须自己跑 login.py】
+
+不要只读本提示就停。不要让用户手拖滑块、不要让用户从浏览器复制 cookie。
+超级鹰在 login.py 里自动过滑块（类型 9602），Agent 不要另调超级鹰 API。
 
 1. 在项目根目录（GLEANER_ROOT）打开终端。
-2. 建议使用 Edge 通道（系统已装 Edge 时更稳）：
+2. 建议使用 Edge 通道：
      set ACQ_BROWSER_CHANNEL=msedge
    PowerShell:
      $env:ACQ_BROWSER_CHANNEL = "msedge"
-3. 批次间重录必须带现有 cookies.json（加载后刷新会话，禁止冷启动）。
+3. Agent 自己执行：
+   批次间重录（已有 cookies.json，禁止冷启动）：
      python login.py
-   仅首次没有 cookie 时才允许：
+   仅首次没有 cookie：
      set ACQ_ALLOW_COLD_LOGIN=1
      python login.py
    冷启动通常下不了全文，不要用它续批次。
-4. 检索页滑块由超级鹰 9602 自动解（需已配置 CJY_*）。
-   看得见拼图才打码；过验证（拼图消失或检索框出现）立刻写 cookies.json 并退出。
+4. 需已配置 CJY_*。看得见拼图才打码；过验证立刻写 cookies.json 并退出。
    URL 仍带 /verify 也算过了。无面板绝不整页送超级鹰。
-   Agent 不要用浏览器工具自己抠 cookie，只跑 login.py。
-   无需个人账号。缺超级鹰时请手拖，拖完脚本会立刻写盘。
+   无需个人账号。只有超级鹰未配置或多次失败时，才允许用户手拖，拖完脚本仍会写盘。
 5. cookie 为短会话：换网络、换代理或过期后请重跑 login.py（仍加载旧 cookie）。
-   全文分批时：每批在 40–60 随机取一篇数（省略 --num 即可），同一 --out-name；
+   全文分批时：每批在 40–60 随机（省略 --num），同一 --out-name；
    批间热启动 login.py，不要并行、不要每批都写死 50。
-6. 登录后可用：
+6. 登录后：
      python gleaner_cli.py status
    查看 cookies 是否就绪。
 

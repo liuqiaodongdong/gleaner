@@ -54,7 +54,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
    `python "$env:GLEANER_ROOT\gleaner_cli.py" status`  
    看 `lines.*.ready` / `blockers` / `next_steps_for_user`。线未 ready → 引导配置，**禁止硬采**。
 
-2. **知网先录 cookie**：`status` 里 `cookies.ok=false` 时 **禁止** 跑 `cnki` / `cnki-list`。Agent **自己跑** `python login.py`（超级鹰自动过滑块并写入，用户不用手填 cookie）。仅第一次没有文件才加 `ACQ_ALLOW_COLD_LOGIN=1`。冷启动采集下不了全文，只会空烧超级鹰。
+2. **知网先录 cookie**：`status` 里 `cookies.ok=false` 时 **禁止** 跑 `cnki` / `cnki-list`。Agent **只跑** `python login.py`（超级鹰过滑块后立刻写盘并退出）。**不要**用浏览器工具自己抠 cookie。仅第一次没有文件才加 `ACQ_ALLOW_COLD_LOGIN=1`。冷启动采集下不了全文，只会空烧超级鹰。
 
 3. **长任务走 shell CLI**：`cnki-list` / `cnki` / `els` / `intl` 可能超过 30 分钟。用终端执行 CLI，**不要假设**会在固定超时内返回。过程与结果看 `corpus/*_run.log` 与结束时的摘要 JSON。
 

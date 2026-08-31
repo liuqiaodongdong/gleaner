@@ -1,10 +1,13 @@
-"""有头登录知网 + 超级鹰过滑块 + 自动保存 cookie。
+"""有头登录知网 + 超级鹰过滑块 + 立刻保存 cookie。
 
 用法：set ACQ_BROWSER_CHANNEL=msedge & python login.py
 检索页滑块走超级鹰 9602（与采集线同一套求解器）。
 默认热启动：加载现有 cookies.json。批次间禁止冷启动。
 仅首次没有 cookie 时：set ACQ_ALLOW_COLD_LOGIN=1
-过验证后才覆盖写入；验证页中途不改文件。无需个人知网账号。
+
+过验证（拼图消失或检索框出现）立刻覆盖 cookies.json 并退出。
+URL 仍带 /verify 不算失败。没有拼图面板绝不送超级鹰。
+无需个人知网账号。Agent 不要自己用浏览器工具抠 cookie。
 """
 import json
 import os
@@ -16,8 +19,9 @@ from playwright.sync_api import sync_playwright
 
 from config import COOKIES_FILE, CNKI_SEARCH_URL
 
-_SOLVE_RETRY_SEC = 20
-_MAX_AUTO_SOLVE = 2  # 防止刷新后找不到手柄时反复扣超级鹰分
+_MAX_AUTO_SOLVE = 2  # 看得见拼图时最多打码两轮
+_WIDGET_WAIT_SEC = 5
+_MANUAL_WAIT_SEC = 90
 
 try:
     sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -31,41 +35,27 @@ def apply_login_credentials() -> None:
     apply_credentials(load_credentials(resolve_root()))
 
 
-def try_auto_solve_login_captcha(page) -> bool:
-    """复用采集线 wait_for_captcha。缺超级鹰则返回 False，交给手拖。"""
-    apply_login_credentials()
-    from captcha import _captcha_present
-    from scraper import wait_for_captcha
-
-    pages = []
+def _still_on_captcha(page, url: str) -> bool:
+    """还有可拖的拼图才算卡在验证。URL 带 /verify 不算。"""
     try:
-        pages = list(page.context.pages)
+        from captcha import captcha_blocks_cookie_write
+        return bool(captcha_blocks_cookie_write(page))
     except Exception:
-        pages = [page]
-    if page not in pages:
-        pages.insert(0, page)
+        return False
+
+
+def try_auto_solve_login_captcha(page, max_attempts: int = _MAX_AUTO_SOLVE) -> bool:
+    """只解当前页；最多 max_attempts 次。无拼图返回 True。"""
+    apply_login_credentials()
+    from captcha import solve_slider_captcha
+
     try:
-        for p in pages:
-            wait_for_captcha(p)
+        return bool(solve_slider_captcha(page, max_attempts=max_attempts))
     except RuntimeError as e:
         print(f"[login] 超级鹰未就绪，请手拖滑块：{e}")
         return False
     except Exception as e:
         print(f"[login] 自动解异常，请手拖滑块：{e}")
-        return False
-    try:
-        return not _captcha_present(page)
-    except Exception:
-        return False
-
-
-def _still_on_captcha(page, url: str) -> bool:
-    if ("verify" in url) or ("captcha" in url.lower()):
-        return True
-    try:
-        from captcha import _captcha_present
-        return _captcha_present(page)
-    except Exception:
         return False
 
 
@@ -95,22 +85,91 @@ def load_existing_session(context) -> int:
 
 
 def persist_warm_cookies(context, page) -> bool:
-    """仅在已离开验证页时覆盖 cookies.json，避免把半截会话写进去。"""
+    """拼图还在时不覆盖；过了就立刻写盘。URL 带 /verify 不阻止写入。"""
     try:
         url = page.url
     except Exception:
         url = "?"
     if _still_on_captcha(page, url):
-        print("[login] 仍在验证页，不覆盖 cookies.json")
+        print("[login] 拼图还在，不覆盖 cookies.json")
         return False
     try:
         cookies = context.cookies()
-        COOKIES_FILE.write_text(json.dumps(cookies, ensure_ascii=False, indent=2), encoding="utf-8")
+        COOKIES_FILE.write_text(
+            json.dumps(cookies, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         print(f"[login] 已更新会话 {len(cookies)} 个 cookie")
         return True
     except Exception as e:
         print(f"[login] 保存失败: {e}")
         return False
+
+
+def leave_verify_if_passed(page) -> None:
+    """过了滑块但地址还停在 /verify 时，跳回检索页再落一次 cookie。"""
+    try:
+        url = page.url or ""
+    except Exception:
+        return
+    if "verify" not in url.lower() and "captcha" not in url.lower():
+        return
+    if _still_on_captcha(page, url):
+        return
+    print("[login] 已过验证但仍停在验证 URL，跳回检索页")
+    try:
+        page.goto(CNKI_SEARCH_URL, wait_until="domcontentloaded", timeout=20000)
+        time.sleep(1.0)
+    except Exception as e:
+        print(f"[login] 跳回检索页失败: {e}")
+
+
+def wait_for_widget(page, timeout_sec: float = _WIDGET_WAIT_SEC) -> bool:
+    from captcha import _captcha_widget_visible, _has_pass_signal
+
+    deadline = time.monotonic() + timeout_sec
+    while time.monotonic() < deadline:
+        if _captcha_widget_visible(page):
+            return True
+        if _has_pass_signal(page):
+            return False
+        time.sleep(0.4)
+    try:
+        from captcha import _captcha_widget_visible
+        return bool(_captcha_widget_visible(page))
+    except Exception:
+        return False
+
+
+def wait_for_manual_pass(context, page, timeout_sec: int = _MANUAL_WAIT_SEC) -> bool:
+    """自动解失败后等人手拖；拼图一消失立刻写盘。不再打码。"""
+    print("[login] 请手拖滑块。通过后立刻写入 cookie，不会再扣超级鹰分。")
+    deadline = time.monotonic() + timeout_sec
+    last_note = 0.0
+    while time.monotonic() < deadline:
+        try:
+            _ = context.cookies()
+        except Exception:
+            print("[login] 浏览器已关闭，停止等待。")
+            return False
+        try:
+            url = page.url
+        except Exception:
+            url = "?"
+        if not _still_on_captcha(page, url):
+            leave_verify_if_passed(page)
+            return persist_warm_cookies(context, page)
+        now = time.monotonic()
+        if now - last_note >= 8:
+            print("[login] 仍在等手拖滑块…")
+            last_note = now
+        time.sleep(0.8)
+    print("[login] 等待手拖超时，未写入。")
+    return False
+
+
+def persist_after_pass(context, page) -> bool:
+    leave_verify_if_passed(page)
+    return persist_warm_cookies(context, page)
 
 
 def _context_kwargs() -> dict:
@@ -152,62 +211,35 @@ def main() -> None:
     load_existing_session(context)
     page = context.new_page()
     page.goto(CNKI_SEARCH_URL, wait_until="domcontentloaded", timeout=30000)
-    time.sleep(2.5)
+    time.sleep(2.0)
 
-    print("[login] 已带现有机构会话打开知网（非冷启动）。有滑块则超级鹰自动解。")
-    print("[login] 通过验证后才写入 cookies.json。完成后关闭浏览器窗口。")
-    auto_rounds = 0
-    if try_auto_solve_login_captcha(page):
-        persist_warm_cookies(context, page)
-    else:
-        auto_rounds = 1
-    last_solve = time.monotonic()
-    stopped_auto = False
-
-    saved_any = False
-    for i in range(100):  # 100 * 3s = 5 分钟
-        try:
-            _ = context.cookies()
-        except Exception:
-            print("[login] 浏览器已关闭，停止。")
-            break
-        try:
-            url = page.url
-        except Exception:
-            url = "?"
-        on_verify = _still_on_captcha(page, url)
-        if (
-            on_verify
-            and auto_rounds < _MAX_AUTO_SOLVE
-            and (time.monotonic() - last_solve) >= _SOLVE_RETRY_SEC
-        ):
-            print("[login] 仍在验证页，再次尝试超级鹰…")
-            auto_rounds += 1
+    print("[login] 已打开知网。有拼图才打码；过验证立刻写 cookies.json 并退出。")
+    saved = False
+    try:
+        appeared = wait_for_widget(page)
+        if appeared:
+            print("[login] 检测到拼图，超级鹰最多试 2 次（无面板不打码）")
             try_auto_solve_login_captcha(page)
-            last_solve = time.monotonic()
-            try:
-                url = page.url
-            except Exception:
-                url = "?"
-            on_verify = _still_on_captcha(page, url)
-        elif on_verify and auto_rounds >= _MAX_AUTO_SOLVE and not stopped_auto:
-            print("[login] 自动解已停，避免再扣超级鹰分。请手拖滑块，通过后会写入 cookie。")
-            stopped_auto = True
-        if not on_verify:
-            saved_any = persist_warm_cookies(context, page) or saved_any
-            if saved_any:
-                print(f"[login] {i*3}s  会话已热更新")
-                break
+            if not _still_on_captcha(page, getattr(page, "url", "") or ""):
+                saved = persist_after_pass(context, page)
+            if not saved:
+                saved = wait_for_manual_pass(context, page)
         else:
-            print(f"[login] {i*3}s  仍在验证页，保留原 cookies.json")
-        time.sleep(3)
+            print("[login] 未出现拼图，直接保存当前会话")
+            saved = persist_after_pass(context, page)
+    except Exception as e:
+        print(f"[login] 过程异常: {e}")
+        try:
+            saved = persist_warm_cookies(context, page) or saved
+        except Exception:
+            pass
 
     try:
         browser.close()
     except Exception:
         pass
     pw.stop()
-    print(f"[login] 完成。共保存 cookie 到 {COOKIES_FILE}（saved={saved_any}）")
+    print(f"[login] 完成。saved={saved} path={COOKIES_FILE}")
 
 
 if __name__ == "__main__":

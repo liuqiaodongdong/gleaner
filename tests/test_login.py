@@ -1,52 +1,57 @@
-# tests/test_login.py —— 登录录 cookie 时复用超级鹰，不启浏览器
+# tests/test_login.py —— 登录录 cookie：过验证立刻写盘，无拼图不打码
 from types import SimpleNamespace
 
 import login
 
 
 class _FakePage:
-    def __init__(self):
+    def __init__(self, url="https://kns.cnki.net/kns8s/defaultresult/index"):
+        self.url = url
         self.context = SimpleNamespace(pages=[])
         self.context.pages.append(self)
 
 
-def test_try_auto_solve_calls_wait_for_captcha(monkeypatch):
+def test_try_auto_solve_calls_solve_slider(monkeypatch):
     calls = []
     monkeypatch.setattr(login, "apply_login_credentials", lambda: None)
 
-    def fake_wait(page):
-        calls.append(page)
+    def fake_solve(page, max_attempts=2):
+        calls.append((page, max_attempts))
+        return True
 
-    monkeypatch.setattr("scraper.wait_for_captcha", fake_wait)
-    monkeypatch.setattr("captcha._captcha_present", lambda page: False)
+    monkeypatch.setattr("captcha.solve_slider_captcha", fake_solve)
     page = _FakePage()
     assert login.try_auto_solve_login_captcha(page) is True
-    assert calls == [page]
+    assert calls == [(page, 2)]
 
 
 def test_try_auto_solve_missing_cjy_falls_back(monkeypatch):
     monkeypatch.setattr(login, "apply_login_credentials", lambda: None)
 
-    def boom(_page):
+    def boom(_page, max_attempts=2):
         raise RuntimeError("超级鹰账号未配置：请设置环境变量 CJY_USER / CJY_PASS / CJY_SOFTID")
 
-    monkeypatch.setattr("scraper.wait_for_captcha", boom)
+    monkeypatch.setattr("captcha.solve_slider_captcha", boom)
     assert login.try_auto_solve_login_captcha(_FakePage()) is False
 
 
 def test_try_auto_solve_still_present_returns_false(monkeypatch):
     monkeypatch.setattr(login, "apply_login_credentials", lambda: None)
-    monkeypatch.setattr("scraper.wait_for_captcha", lambda page: None)
-    monkeypatch.setattr("captcha._captcha_present", lambda page: True)
+    monkeypatch.setattr("captcha.solve_slider_captcha", lambda page, max_attempts=2: False)
     assert login.try_auto_solve_login_captcha(_FakePage()) is False
 
 
-def test_still_on_captcha_detects_overlay(monkeypatch):
-    monkeypatch.setattr("captcha._captcha_present", lambda page: True)
-    assert login._still_on_captcha(_FakePage(), "https://kns.cnki.net/kns8s/defaultresult/index") is True
-    monkeypatch.setattr("captcha._captcha_present", lambda page: False)
-    assert login._still_on_captcha(_FakePage(), "https://kns.cnki.net/kns8s/defaultresult/index") is False
-    assert login._still_on_captcha(_FakePage(), "https://kns.cnki.net/verify") is True
+def test_still_on_captcha_ignores_verify_url(monkeypatch):
+    monkeypatch.setattr("captcha.captcha_blocks_cookie_write", lambda page: False)
+    assert (
+        login._still_on_captcha(_FakePage(), "https://kns.cnki.net/verify/xxx")
+        is False
+    )
+    monkeypatch.setattr("captcha.captcha_blocks_cookie_write", lambda page: True)
+    assert (
+        login._still_on_captcha(_FakePage(), "https://kns.cnki.net/kns8s/defaultresult/index")
+        is True
+    )
 
 
 def test_cjy_reads_process_env_after_dotenv(monkeypatch):
@@ -106,13 +111,12 @@ def test_load_existing_session_warms_from_file(tmp_path, monkeypatch):
     assert added[0]["name"] == "Ecp_ClientId"
 
 
-def test_persist_warm_cookies_skips_verify_page(tmp_path, monkeypatch):
+def test_persist_warm_cookies_skips_when_widget(tmp_path, monkeypatch):
     ck = tmp_path / "cookies.json"
     ck.write_text("[]", encoding="utf-8")
     monkeypatch.setattr(login, "COOKIES_FILE", ck)
     monkeypatch.setattr(login, "_still_on_captcha", lambda page, url: True)
-    page = _FakePage()
-    page.url = "https://kns.cnki.net/verify"
+    page = _FakePage("https://kns.cnki.net/verify")
 
     class Ctx:
         def cookies(self):
@@ -122,13 +126,13 @@ def test_persist_warm_cookies_skips_verify_page(tmp_path, monkeypatch):
     assert ck.read_text(encoding="utf-8") == "[]"
 
 
-def test_persist_warm_cookies_writes_after_pass(tmp_path, monkeypatch):
+def test_persist_writes_on_verify_url_if_passed(tmp_path, monkeypatch):
+    """过了滑块但地址还带 /verify，必须立刻写盘。"""
     ck = tmp_path / "cookies.json"
     ck.write_text("[]", encoding="utf-8")
     monkeypatch.setattr(login, "COOKIES_FILE", ck)
     monkeypatch.setattr(login, "_still_on_captcha", lambda page, url: False)
-    page = _FakePage()
-    page.url = "https://kns.cnki.net/kns8s/defaultresult/index"
+    page = _FakePage("https://kns.cnki.net/verify/slider")
 
     class Ctx:
         def cookies(self):

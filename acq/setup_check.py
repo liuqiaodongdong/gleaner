@@ -17,7 +17,7 @@ _LOGIN_FIRST = (
 )
 _LOGIN_WARM = (
     "续批次：不要设 ACQ_ALLOW_COLD_LOGIN，直接 python login.py 加载现有 cookies.json（热启动）。"
-    "过验证后才写入。详见 python gleaner_cli.py login-hint。"
+    "过验证（拼图消失或检索框出现）立刻写入。详见 python gleaner_cli.py login-hint。"
 )
 
 

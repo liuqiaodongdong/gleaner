@@ -72,27 +72,51 @@ def chaojiying_score() -> str:
         return f"score err: {e}"
 
 
-def _captcha_present(page: Page) -> bool:
-    """是否有验证码：/verify、bar.cnki 拼图、安全验证标题 或 可见验证码面板。"""
-    # 已通过后的下载提示页（可能仍在 bar.cnki 域）不算验证码
+def _page_url(page: Page) -> str:
+    try:
+        return page.url or ""
+    except Exception:
+        return ""
+
+
+def _page_title(page: Page) -> str:
+    try:
+        return page.title() or ""
+    except Exception:
+        return ""
+
+
+def _has_pass_signal(page: Page) -> bool:
+    """检索框已出、或下载页写了「验证完成」——URL 还带 /verify 也算过了。"""
     try:
         body = page.inner_text("body", timeout=1000) or ""
         if "验证完成" in body or "已进入下载" in body:
-            return False
-    except Exception:
-        pass
-    try:
-        u = page.url or ""
-        if "verify" in u or "captcha" in u.lower() or "bar.cnki.net" in u:
             return True
     except Exception:
         pass
     try:
-        t = page.title() or ""
-        if t == "安全验证" or "拼图校验" in t:
+        el = page.query_selector("input.search-input, input#txt_SearchText")
+        if el and el.is_visible():
             return True
     except Exception:
         pass
+    return False
+
+
+def _captcha_url_hint(page: Page) -> bool:
+    u = _page_url(page).lower()
+    t = _page_title(page)
+    if "verify" in u or "captcha" in u or "bar.cnki.net" in u:
+        return True
+    return t == "安全验证" or "拼图校验" in t
+
+
+def _captcha_present(page: Page) -> bool:
+    """是否还像验证码页。通过信号优先；URL 带 /verify 只表示「可能要解」，不表示失败。"""
+    if _has_pass_signal(page):
+        return False
+    if _captcha_url_hint(page):
+        return True
     for sel in (
         ".verify-img-panel",
         "#verify-bar-box",
@@ -237,47 +261,63 @@ def _find_handle_in_frames(page: Page, preferred_host=None):
     return _find_first(page, _HANDLE_SELECTORS)
 
 
+def _captcha_widget_visible(page: Page) -> bool:
+    """看得见拼图面板或滑块手柄才值得打码。"""
+    try:
+        _, panel = _find_panel_in_frames(page)
+        if panel:
+            return True
+    except Exception:
+        pass
+    try:
+        if _find_handle_in_frames(page):
+            return True
+    except Exception:
+        pass
+    return False
+
+
+def captcha_blocks_cookie_write(page: Page) -> bool:
+    """还有可拖的拼图才禁止写 cookie。URL 带 /verify 不算。"""
+    if _has_pass_signal(page):
+        return False
+    return _captcha_widget_visible(page)
+
+
 def solve_slider_captcha(page: Page, max_attempts: int = 4) -> bool:
     """检测并用超级鹰 9602 解 CNKI 滑块/拼图校验。无验证码返回 True。"""
     if not _captcha_present(page):
         return True
     for attempt in range(max_attempts):
-        if not _captcha_present(page):
+        if _has_pass_signal(page) or not _captcha_present(page):
             print("[captcha] 验证码已消失 ✓")
             return True
-        print(f"[captcha] 超级鹰识别中 (尝试 {attempt + 1}/{max_attempts})...")
         # 等面板出现（主文档或 iframe）
         panel = None
         host = page
-        for _wait in range(10):
+        for _wait in range(8):
             host, panel = _find_panel_in_frames(page)
             if panel:
                 break
-            if not _captcha_present(page):
+            if _has_pass_signal(page):
                 print("[captcha] 验证码已消失（等待中）✓")
                 return True
-            time.sleep(1.0)
+            time.sleep(0.5)
         if not panel:
-            # 兜底：整页截图给超级鹰（DOM 选择器对不上时）
-            print("[captcha] 找不到面板，改用整页截图")
+            # 无面板绝不整页送超级鹰：过验证后 URL 常仍带 /verify，整页打码就是空烧
             try:
                 page.screenshot(path="debug_captcha_nopanel.png", full_page=False)
-                print("[captcha] 无面板诊断图已保存 debug_captcha_nopanel.png")
+                print("[captcha] 无拼图面板，不送超级鹰。诊断图 debug_captcha_nopanel.png")
             except Exception:
-                pass
-            try:
-                img = page.screenshot(type="jpeg", full_page=False)
-            except Exception as e:
-                print(f"[captcha] 整页截图失败: {e}")
-                time.sleep(2)
-                continue
-        else:
-            try:
-                img = panel.screenshot(type="jpeg")
-            except Exception as e:
-                print(f"[captcha] 面板截图失败: {e}")
-                time.sleep(1)
-                continue
+                print("[captcha] 找不到拼图面板，不送超级鹰（避免空烧）")
+            return bool(_has_pass_signal(page))
+        print(f"[captcha] 超级鹰识别中 (尝试 {attempt + 1}/{max_attempts})...")
+        try:
+            img = panel.screenshot(type="jpeg")
+        except Exception as e:
+            print(f"[captcha] 面板截图失败: {e}")
+            time.sleep(1)
+            continue
         res = _cjy_solve(img, 9602)
         print(f"[captcha] 超级鹰: err_no={res.get('err_no')} pic_str={res.get('pic_str')}")
         if res.get("err_no") != 0:
@@ -312,10 +352,11 @@ def solve_slider_captcha(page: Page, max_attempts: int = 4) -> bool:
         print(f"[captcha] 拖拽距离 {distance:.0f}px")
         _human_like_drag(page, handle, distance)
         time.sleep(2.5)
-        if not _captcha_present(page):
+        # 过了之后 URL 经常还停在 /verify，不能再用 URL 判断失败
+        if _has_pass_signal(page) or not _captcha_widget_visible(page):
             print("[captcha] 验证通过 ✓")
             return True
-        print("[captcha] 拖动后仍在验证页，报错返分 + 刷新重试")
+        print("[captcha] 拖动后拼图还在，报错返分 + 刷新重试")
         _cjy_report(pic_id)
         rb = page.query_selector(".verify-refresh, [class*='refresh']")
         if not rb:

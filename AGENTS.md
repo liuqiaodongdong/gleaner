@@ -36,7 +36,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 3. 若用户要用的线 `ready=false`：
    - **用清晰清单展示给用户**（申请网址、要填哪些环境变量、本地命令）。
    - **协助用户完成配置**（写 `GLEANER_ROOT/.env`、写 `acq/data/.elsevier_key`）。
-   - **知网必须先有 `cookies.json`**：没有则 Agent **自己启动** `login.py`（有头 Edge，超级鹰自动过滑块并写入，用户不用手填、一般不用手拖）。仅首次加 `ACQ_ALLOW_COLD_LOGIN=1`。**禁止**无 cookie 就跑 `cnki` / `cnki-list`（冷启动下不了全文，只会空烧超级鹰）。
+   - **知网必须先有 `cookies.json`**：没有则 Agent **只跑** `login.py`（有头 Edge，超级鹰过滑块后立刻写盘并退出）。**不要**用浏览器工具自己抠 cookie。仅首次加 `ACQ_ALLOW_COLD_LOGIN=1`。**禁止**无 cookie 就跑 `cnki` / `cnki-list`（冷启动下不了全文，只会空烧超级鹰）。
    - **不要**在未就绪时强行跑 `cnki` / `els` / `intl`（CLI 会返回 `setup_incomplete`）。
 4. 用户表示已配置后，**再跑一次** `status` 确认，再开始采集。
 

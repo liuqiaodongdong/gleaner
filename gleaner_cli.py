@@ -194,8 +194,11 @@ def cmd_login_hint(_root: Path) -> int:
      set ACQ_ALLOW_COLD_LOGIN=1
      python login.py
    冷启动通常下不了全文，不要用它续批次。
-4. 检索页滑块由超级鹰 9602 自动解（需已配置 CJY_*）；过验证后才覆盖 cookies.json。
-   无需个人账号。缺超级鹰时请手拖滑块。
+4. 检索页滑块由超级鹰 9602 自动解（需已配置 CJY_*）。
+   看得见拼图才打码；过验证（拼图消失或检索框出现）立刻写 cookies.json 并退出。
+   URL 仍带 /verify 也算过了。无面板绝不整页送超级鹰。
+   Agent 不要用浏览器工具自己抠 cookie，只跑 login.py。
+   无需个人账号。缺超级鹰时请手拖，拖完脚本会立刻写盘。
 5. cookie 为短会话：换网络、换代理或过期后请重跑 login.py（仍加载旧 cookie）。
 6. 登录后可用：
      python gleaner_cli.py status

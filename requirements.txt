@@ -1,6 +1,8 @@
 playwright>=1.40
 requests>=2.31
-mcp>=1.0
+# 仅遗留 acq_mcp.py / 相关测试需要 FastMCP 1.x；生产 CLI 不走 MCP。
+# mcp>=1.0 会装到 2.x，import FastMCP 会失败。
+mcp>=1.0,<2
 lxml>=5.0
 pandas>=2.0
 pytest>=8.0

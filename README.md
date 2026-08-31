@@ -34,6 +34,7 @@ python -m venv .venv
 pip install -r requirements.txt
 # 若不用系统 Edge 跑知网，再执行：
 # playwright install chromium
+# 全量 pytest 需要 mcp 1.x（requirements 已锁 <2）；生产跑 CLI 不启动 MCP。
 ```
 
 需要 **Python 3.11+**。知网线建议 Windows + 系统 Edge。

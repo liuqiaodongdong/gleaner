@@ -8,7 +8,7 @@ cd gleaner
 pip install -r requirements.txt
 ```
 
-需要 **Python 3.11+**。
+需要 **Python 3.11+**。`pip install -r requirements.txt` 会把 `mcp` 锁在 1.x（全量 pytest 仍 import 遗留 `acq_mcp.py`）。生产采集只用 `gleaner_cli.py`，不启动 MCP。
 
 ## 配置
 

@@ -18,7 +18,7 @@ $cli = "python `"$env:GLEANER_ROOT\gleaner_cli.py`""
 
 1. **status**  
    `python gleaner_cli.py status`  
-   确认代理 + 超级鹰（全文）+ 建议有 cookies。
+   确认代理 + 超级鹰（全文）+ **已有 cookies.json**。没有 cookie 先 `login-hint`，不要开 list/全文。
 
 2. **概念组（Agent 完成，CLI 不做 LLM 拓展）**  
    按研究方向同义发散，分组 JSON：
@@ -77,7 +77,9 @@ python gleaner_cli.py cnki --query "数字经济" --num 10
 
 ### Cookie
 
-短会话。失败时：`python gleaner_cli.py login-hint`，再在 ROOT 热启动 `python login.py`（建议 `ACQ_BROWSER_CHANNEL=msedge`）。已有 `cookies.json` 时不要冷启动；仅首次无 cookie 才 `ACQ_ALLOW_COLD_LOGIN=1`。无需个人知网账号。
+**首次装机必须先录 cookie**，再 `cnki-list` / `cnki`。无 `cookies.json` 冷启动下不了全文，只会空烧超级鹰。
+
+仅第一次：`set ACQ_ALLOW_COLD_LOGIN=1` 后 `python login.py`。之后热启动，不要冷启动。失败时先 `python gleaner_cli.py login-hint`。无需个人知网账号。
 
 ---
 

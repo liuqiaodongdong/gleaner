@@ -107,6 +107,7 @@ def test_login_hint_mentions_login_py(capsys):
     assert "超级鹰" in out
     assert "ACQ_ALLOW_COLD_LOGIN" in out
     assert "冷启动" in out
+    assert "禁止" in out or "空烧" in out
 
 
 def test_score_prints_result(tmp_path, monkeypatch, capsys):

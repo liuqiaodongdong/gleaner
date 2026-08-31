@@ -26,6 +26,10 @@ def test_check_setup_shape(monkeypatch, tmp_path):
     ids = {b["id"] for b in s["blockers"]}
     assert "chaojiying" in ids
     assert "elsevier_key" in ids
+    assert "cnki_cookies" in ids
+    ck_b = next(b for b in s["blockers"] if b["id"] == "cnki_cookies")
+    assert not ck_b.get("optional")
+    assert "空烧" in ck_b["action"] or "禁止" in ck_b["action"]
     assert any("Agent" in x for x in s["next_steps_for_user"])
     els_b = next(b for b in s["blockers"] if b["id"] == "elsevier_key")
     assert "dev.elsevier.com" in els_b["url"]
@@ -82,8 +86,26 @@ def test_preflight_pass_when_ready(monkeypatch, tmp_path):
     monkeypatch.setenv("CJY_SOFTID", "1")
     monkeypatch.setenv("ELSEVIER_API_KEY", "KEY")
     monkeypatch.setenv("ACQ_PROXY", "http://127.0.0.1:9")
-    monkeypatch.setattr(setup_check, "COOKIES_FILE", tmp_path / "c.json")
+    ck = tmp_path / "c.json"
+    ck.write_text(json.dumps([{"name": "a", "value": "b", "domain": ".cnki.net"}]), encoding="utf-8")
+    monkeypatch.setattr(setup_check, "COOKIES_FILE", ck)
     monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / "k")
     monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "x")
     assert setup_check.preflight("cnki_collect") is None
     assert setup_check.preflight("elsevier") is None
+
+
+def test_cnki_not_ready_without_cookies(monkeypatch, tmp_path):
+    monkeypatch.setenv("CJY_USER", "u")
+    monkeypatch.setenv("CJY_PASS", "p")
+    monkeypatch.setenv("CJY_SOFTID", "1")
+    monkeypatch.setenv("ACQ_PROXY", "http://127.0.0.1:9")
+    monkeypatch.setattr(setup_check, "COOKIES_FILE", tmp_path / "missing.json")
+    monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / "k")
+    monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "x")
+    s = setup_check.check_setup()
+    assert s["lines"]["cnki"]["cnki_collect_ready"] is False
+    assert s["lines"]["cnki"]["cnki_list_ready"] is False
+    blocked = setup_check.preflight("cnki")
+    assert blocked["error"] == "setup_incomplete"
+    assert "cookie" in blocked["message"].lower() or "cookies" in blocked["message"].lower()

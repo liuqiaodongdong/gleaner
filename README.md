@@ -81,9 +81,11 @@ ACQ_PROXY=http://127.0.0.1:PORT
 - 推荐设置 `GLEANER_ROOT` 指向本仓库根  
 - Grok 用户 Skill：把仓库内 `skill/gleaner/` 复制到 `~/.grok/skills/gleaner/`（包装脚本会解析 ROOT 并调用 CLI）
 
-### 4. （可选）知网登录缓存
+### 4. 知网登录（首次必做）
 
-机构会话写在 `cookies.json`（已 gitignore）。**批次间必须热启动**：加载现有 cookie，不要裸开浏览器。仅第一次没有 cookie 才允许冷启动。滑块用超级鹰 9602；过验证后才写入。无需个人知网账号。
+机构会话写在 `cookies.json`（已 gitignore）。**没有这份文件就不要跑 `cnki` / `cnki-list`**，冷启动下不了全文，只会空烧超级鹰。
+
+录入由 `python login.py` **自动完成**（超级鹰过滑块后写入），不用手填 cookie、不用个人知网账号。会弹出有头浏览器。仅第一次没有文件才加 `ACQ_ALLOW_COLD_LOGIN=1`。之后批次间热启动，不要裸开。
 
 ```bash
 set ACQ_BROWSER_CHANNEL=msedge

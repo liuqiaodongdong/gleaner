@@ -25,7 +25,7 @@ python gleaner_cli.py --root "<本仓库绝对路径>" status
 | `ACQ_PROXY` 或系统代理 | 机构网访问知网 | CNKI |
 | `ACQ_HEADLESS` / `ACQ_BROWSER_CHANNEL` | 浏览器（CLI 全文默认 headless + msedge） | CNKI |
 | `ELSEVIER_API_KEY` 或 `acq/data/.elsevier_key` | Elsevier 官方 Developer API | Elsevier |
-| `cookies.json`（`python login.py` 热启动） | CNKI 机构会话；仅首次无文件才 `ACQ_ALLOW_COLD_LOGIN=1` | CNKI 推荐 |
+| `cookies.json`（`python login.py`） | CNKI 机构会话，**硬门槛**；无文件禁止 `cnki`/`cnki-list`。仅首次 `ACQ_ALLOW_COLD_LOGIN=1` | CNKI 必需 |
 
 超级鹰：https://www.chaojiying.com/  
 Elsevier Key：https://dev.elsevier.com/apikey/manage （仅官方，禁止第三方/破解）

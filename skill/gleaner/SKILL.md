@@ -31,19 +31,21 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
    `python "$env:GLEANER_ROOT\gleaner_cli.py" status`  
    看 `lines.*.ready` / `blockers` / `next_steps_for_user`。线未 ready → 引导配置，**禁止硬采**。
 
-2. **长任务走 shell CLI**：`cnki-list` / `cnki` / `els` / `intl` 可能超过 30 分钟。用终端执行 CLI，**不要假设**会在固定超时内返回。过程与结果看 `corpus/*_run.log` 与结束时的摘要 JSON。
+2. **知网先录 cookie**：`status` 里 `cookies.ok=false` 时 **禁止** 跑 `cnki` / `cnki-list`。Agent **自己跑** `python login.py`（超级鹰自动过滑块并写入，用户不用手填 cookie）。仅第一次没有文件才加 `ACQ_ALLOW_COLD_LOGIN=1`。冷启动采集下不了全文，只会空烧超级鹰。
 
-3. **Cookie 失效**：CNKI 下载/列表报登录、验证码反复失败、或疑似会话过期时：  
+3. **长任务走 shell CLI**：`cnki-list` / `cnki` / `els` / `intl` 可能超过 30 分钟。用终端执行 CLI，**不要假设**会在固定超时内返回。过程与结果看 `corpus/*_run.log` 与结束时的摘要 JSON。
+
+4. **Cookie 失效**：CNKI 下载/列表报登录、验证码反复失败、或疑似会话过期时：  
    - `python gleaner_cli.py login-hint`  
    - 已有 `cookies.json`：在 `GLEANER_ROOT` 下 `set ACQ_BROWSER_CHANNEL=msedge` 后 `python login.py`（热启动，禁止冷启动）  
    - 仅第一次没有 cookie：再加 `set ACQ_ALLOW_COLD_LOGIN=1`  
    完成后重跑 `status` 再采。无需个人知网账号。
 
-4. **完成后汇报**：`local_dir` 路径、`metadata_rows` / `downloaded_files` 篇数、主要标题、`log_path`。0 篇也要报，并建议是否升 level / 放宽 query。
+5. **完成后汇报**：`local_dir` 路径、`metadata_rows` / `downloaded_files` 篇数、主要标题、`log_path`。0 篇也要报，并建议是否升 level / 放宽 query。
 
-5. **细节文档**：环境与密钥见 [references/env.md](references/env.md)；标准流程见 [references/workflows.md](references/workflows.md)。
+6. **细节文档**：环境与密钥见 [references/env.md](references/env.md)；标准流程见 [references/workflows.md](references/workflows.md)。
 
-6. **禁止回显密钥**：不要打印 `CJY_*`、`ELSEVIER_API_KEY`、完整 cookies 或 `.elsevier_key` 内容。
+7. **禁止回显密钥**：不要打印 `CJY_*`、`ELSEVIER_API_KEY`、完整 cookies 或 `.elsevier_key` 内容。
 
 ## CNKI 推荐流程（分级）
 
@@ -68,7 +70,7 @@ Elsevier / 国际见 [references/workflows.md](references/workflows.md)。
 
 | 现象 | 处理 |
 |------|------|
-| setup / ready=false | 按 status 的 next_steps 配代理、CJY、Elsevier Key；勿重试硬采 |
+| setup / ready=false | 按 status 的 next_steps 配代理、CJY、**cookies**、Elsevier Key；无 cookie 勿开 cnki |
 | cookie / 登录相关失败 | `login-hint` → 热启动 `python login.py`（仅首次 `ACQ_ALLOW_COLD_LOGIN=1`） |
 | 子进程非 0 | 读 `corpus/*_run.log` 尾部，汇报 log 路径 |
 | 0 命中 | 升 level、放宽年份或改 query；先 list 再 collect |

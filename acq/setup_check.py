@@ -192,8 +192,10 @@ def check_setup() -> dict:
     els = _elsevier()
     carsi = _carsi()
 
-    cnki_collect_ready = bool(cjy["ok"] and proxy_ok)
-    cnki_list_ready = bool(proxy_ok)
+    cookies_ok = bool(cnki_ck["ok"])
+    # 无 cookie 的冷启动过不了验证，只会空烧超级鹰
+    cnki_collect_ready = bool(cjy["ok"] and proxy_ok and cookies_ok)
+    cnki_list_ready = bool(proxy_ok and cookies_ok)
     lines = {
         "cnki": {
             "ready": cnki_collect_ready,
@@ -205,8 +207,9 @@ def check_setup() -> dict:
             "tools": ["cnki", "cnki-list"],
             "cnki_ready": cnki_collect_ready,
             "agent_note": (
-                "CNKI 全文(cnki)：代理 + 超级鹰 为硬门槛；cookies 强烈推荐（login.py 热启动，仅首次 ACQ_ALLOW_COLD_LOGIN=1）。"
-                "题录(cnki-list)：主要需要代理/机构网。"
+                "CNKI（cnki / cnki-list）：代理 + cookies.json 为硬门槛；全文另需超级鹰。"
+                "无 cookie 禁止开浏览器采集，避免冷启动空烧超级鹰。"
+                "首次：ACQ_ALLOW_COLD_LOGIN=1 后 python login.py；之后热启动、不要冷启动。"
             ),
         },
         "elsevier": {
@@ -239,13 +242,15 @@ def check_setup() -> dict:
             "title": "配置可访问知网机构库的代理或校园网",
             "action": "设置 ACQ_PROXY=http://host:port，或开启 Windows 系统代理（与浏览器一致）",
         })
-    if not cnki_ck["ok"]:
+    if not cookies_ok:
         blockers.append({
             "id": "cnki_cookies",
             "severity": "cnki",
-            "optional": True,
-            "title": "录入 CNKI cookies（推荐）",
-            "action": f"{_LOGIN_FIRST} {_LOGIN_WARM}",
+            "title": "先录入 CNKI cookies（硬门槛，勿先采）",
+            "action": (
+                f"{_LOGIN_FIRST} {_LOGIN_WARM}"
+                "无 cookies.json 时禁止跑 cnki / cnki-list，否则冷启动只空烧超级鹰、下不了全文。"
+            ),
         })
     if not els["ok"] and els.get("status") != "disabled":
         blockers.append({
@@ -285,7 +290,8 @@ def check_setup() -> dict:
         next_steps.insert(
             0,
             "【给 Agent】请把下列缺失项用清单展示给用户，协助申请/填写；"
-            "在对应线 ready=false 时不要强行采集该线，先完成配置再重跑 python gleaner_cli.py status。",
+            "CNKI 无 cookies.json 时禁止跑 cnki / cnki-list（先 login-hint，避免超级鹰空跑）。"
+            "对应线 ready=false 时不要强行采集，先完成配置再重跑 python gleaner_cli.py status。",
         )
 
     return {
@@ -314,7 +320,7 @@ def preflight(line: str) -> dict | None:
         return {
             "error": "setup_incomplete",
             "line": "cnki",
-            "message": "CNKI 全文线尚未就绪，请先完成部署引导（超级鹰 + 机构代理）。",
+            "message": "CNKI 全文线尚未就绪：需要超级鹰 + 机构代理 + cookies.json（先 login，勿冷启动空烧超级鹰）。",
             "setup": {
                 "chaojiying": L["chaojiying"],
                 "proxy": L["proxy"],
@@ -330,7 +336,7 @@ def preflight(line: str) -> dict | None:
         return {
             "error": "setup_incomplete",
             "line": "cnki-list",
-            "message": "CNKI 题录线需要可访问知网的代理/机构网。",
+            "message": "CNKI 题录线尚未就绪：需要机构代理 + cookies.json（先 login，勿冷启动空烧超级鹰）。",
             "setup": {"proxy": L["proxy"], "cookies": L["cookies"]},
             "next_steps_for_user": s["next_steps_for_user"],
             "hint": "请先配置 ACQ_PROXY 或系统代理，再跑 python gleaner_cli.py status 确认。",

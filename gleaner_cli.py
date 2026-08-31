@@ -184,8 +184,8 @@ def cmd_login_hint(_root: Path) -> int:
      python gleaner_cli.py status
    查看 cookies 是否就绪。
 
-说明：CNKI 全文采集硬门槛为机构代理 + 超级鹰；cookies 强烈推荐。
-勿把 cookies.json / 密钥提交到 git。
+说明：CNKI 采集硬门槛为机构代理 + cookies.json；全文另需超级鹰。
+无 cookie 禁止先采（会空烧超级鹰）。勿把 cookies.json / 密钥提交到 git。
 """
     print(text)
     return 0

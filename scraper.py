@@ -32,20 +32,34 @@ def _check_captcha(page: Page) -> bool:
 
 
 def wait_for_captcha(page: Page) -> None:
-    """检测到验证码用超级鹰多轮自动解；失败则放弃不死等（headless 无人工）。"""
-    from captcha import solve_slider_captcha, _captcha_present
+    """看得见拼图才打码；过了（检索框/无控件）立刻写 cookie。URL 带 /verify 不算失败。"""
+    from captcha import (
+        solve_slider_captcha,
+        captcha_blocks_cookie_write,
+        _has_pass_signal,
+        _captcha_widget_visible,
+        _captcha_url_hint,
+    )
     from browser import save_cookies_after_captcha
-    if not _captcha_present(page):
+
+    if _has_pass_signal(page):
+        return
+    if not _captcha_widget_visible(page) and _captcha_url_hint(page):
+        for _ in range(8):
+            if _captcha_widget_visible(page) or _has_pass_signal(page):
+                break
+            time.sleep(0.4)
+    if _has_pass_signal(page) or not _captcha_widget_visible(page):
         return
     print("[captcha] 检测到验证码，超级鹰自动解...")
-    for _round in range(3):  # solve_slider_captcha 内部每轮已重试 4 次
+    for _round in range(3):
         if solve_slider_captcha(page):
             try:
                 save_cookies_after_captcha(page.context)
             except Exception:
                 pass
-            time.sleep(1.5)
-            if not _captcha_present(page):
+            time.sleep(1.0)
+            if _has_pass_signal(page) or not captcha_blocks_cookie_write(page):
                 print("[captcha] 已通过 ✓")
                 return
         time.sleep(2)

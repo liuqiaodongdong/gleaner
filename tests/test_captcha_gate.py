@@ -83,3 +83,35 @@ def test_solve_does_not_call_cjy_without_panel(monkeypatch):
     monkeypatch.setattr(captcha, "_cjy_solve", boom)
     page = _Page(url="https://kns.cnki.net/verify/foo", title="安全验证")
     assert captcha.solve_slider_captcha(page) is False
+
+
+def test_save_cookies_skips_when_widget(tmp_path, monkeypatch):
+    import browser
+
+    ck = tmp_path / "cookies.json"
+    ck.write_text("[]", encoding="utf-8")
+    monkeypatch.setattr(browser, "COOKIES_FILE", ck)
+    monkeypatch.setattr(browser, "_any_page_blocks_cookie_write", lambda _ctx: True)
+
+    class Ctx:
+        def cookies(self):
+            return [{"name": "bad"}]
+
+    browser._save_cookies(Ctx())
+    assert ck.read_text(encoding="utf-8") == "[]"
+
+
+def test_wait_for_captcha_skips_without_widget(monkeypatch):
+    import scraper
+
+    monkeypatch.setattr(scraper.time, "sleep", lambda _s: None)
+    called = []
+
+    def boom(_page, max_attempts=4):
+        called.append(1)
+        raise AssertionError("无拼图不应打码")
+
+    monkeypatch.setattr("captcha.solve_slider_captcha", boom)
+    page = _Page(url="https://kns.cnki.net/verify/x", title="安全验证")
+    scraper.wait_for_captcha(page)
+    assert called == []

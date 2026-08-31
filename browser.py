@@ -4,7 +4,22 @@ from playwright.sync_api import sync_playwright, BrowserContext, Page
 from config import COOKIES_FILE
 
 
+def _any_page_blocks_cookie_write(context: BrowserContext) -> bool:
+    """任一标签页还有可拖拼图则禁止覆盖 cookies.json。"""
+    try:
+        from captcha import captcha_blocks_cookie_write
+        for page in context.pages:
+            if captcha_blocks_cookie_write(page):
+                return True
+    except Exception:
+        return False
+    return False
+
+
 def _save_cookies(context: BrowserContext) -> None:
+    if _any_page_blocks_cookie_write(context):
+        print("[browser] 拼图还在，不覆盖 cookies.json")
+        return
     cookies = context.cookies()
     COOKIES_FILE.write_text(json.dumps(cookies, ensure_ascii=False, indent=2))
     print(f"[browser] cookies saved to {COOKIES_FILE}")

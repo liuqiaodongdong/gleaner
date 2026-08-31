@@ -123,21 +123,32 @@ def leave_verify_if_passed(page) -> None:
         print(f"[login] 跳回检索页失败: {e}")
 
 
-def wait_for_widget(page, timeout_sec: float = _WIDGET_WAIT_SEC) -> bool:
+def iter_context_pages(page):
+    try:
+        pages = list(page.context.pages)
+        if page not in pages:
+            pages.insert(0, page)
+        return pages
+    except Exception:
+        return [page]
+
+
+def wait_for_widget(page, timeout_sec: float = _WIDGET_WAIT_SEC):
+    """出现拼图则返回那一页（含新标签）；没有则 None。"""
     from captcha import _captcha_widget_visible, _has_pass_signal
 
     deadline = time.monotonic() + timeout_sec
     while time.monotonic() < deadline:
-        if _captcha_widget_visible(page):
-            return True
-        if _has_pass_signal(page):
-            return False
+        for p in iter_context_pages(page):
+            if _captcha_widget_visible(p):
+                return p
+        if any(_has_pass_signal(p) for p in iter_context_pages(page)):
+            return None
         time.sleep(0.4)
-    try:
-        from captcha import _captcha_widget_visible
-        return bool(_captcha_widget_visible(page))
-    except Exception:
-        return False
+    for p in iter_context_pages(page):
+        if _captcha_widget_visible(p):
+            return p
+    return None
 
 
 def wait_for_manual_pass(context, page, timeout_sec: int = _MANUAL_WAIT_SEC) -> bool:
@@ -216,14 +227,14 @@ def main() -> None:
     print("[login] 已打开知网。有拼图才打码；过验证立刻写 cookies.json 并退出。")
     saved = False
     try:
-        appeared = wait_for_widget(page)
-        if appeared:
+        target = wait_for_widget(page)
+        if target:
             print("[login] 检测到拼图，超级鹰最多试 2 次（无面板不打码）")
-            try_auto_solve_login_captcha(page)
-            if not _still_on_captcha(page, getattr(page, "url", "") or ""):
-                saved = persist_after_pass(context, page)
+            try_auto_solve_login_captcha(target)
+            if not _still_on_captcha(target, getattr(target, "url", "") or ""):
+                saved = persist_after_pass(context, target)
             if not saved:
-                saved = wait_for_manual_pass(context, page)
+                saved = wait_for_manual_pass(context, target)
         else:
             print("[login] 未出现拼图，直接保存当前会话")
             saved = persist_after_pass(context, page)

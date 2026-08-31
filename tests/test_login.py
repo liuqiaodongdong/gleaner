@@ -142,6 +142,17 @@ def test_persist_writes_on_verify_url_if_passed(tmp_path, monkeypatch):
     assert "ok" in ck.read_text(encoding="utf-8")
 
 
+def test_wait_for_widget_finds_other_tab(monkeypatch):
+    monkeypatch.setattr(login.time, "sleep", lambda _s: None)
+    extra = _FakePage("https://kns.cnki.net/verify/new")
+    main = _FakePage()
+    main.context = SimpleNamespace(pages=[main, extra])
+    extra.context = main.context
+    monkeypatch.setattr("captcha._captcha_widget_visible", lambda p: p is extra)
+    monkeypatch.setattr("captcha._has_pass_signal", lambda _p: False)
+    assert login.wait_for_widget(main, timeout_sec=0.05) is extra
+
+
 def test_find_handle_in_frames_searches_iframe():
     import captcha
 

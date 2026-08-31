@@ -36,8 +36,8 @@ Elsevier Key：https://dev.elsevier.com/apikey/manage （仅官方，禁止第�
 
 1. **进程已有环境变量**（最高，不覆盖已设值）
 2. **`GLEANER_ROOT/.env`**（键=值，UTF-8；已 gitignore，勿提交）
-3. **遗留 `GLEANER_ROOT/.mcp.json`** → `mcpServers.gleaner.env`（仅迁移期；可删）
-4. Elsevier 另可读 **`acq/data/.elsevier_key`**（单行 Key，已 gitignore）
+3. Elsevier 另可读 **`acq/data/.elsevier_key`**（单行 Key，已 gitignore）
+   （本机若还留着旧 `.mcp.json` 的 env 段，也会当补缺读入，不必新写）
 
 白名单前缀：`CJY_*`、`ACQ_*`、`ELSEVIER_*` 及上表显式键。
 

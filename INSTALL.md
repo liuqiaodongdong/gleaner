@@ -8,7 +8,7 @@ cd gleaner
 pip install -r requirements.txt
 ```
 
-需要 **Python 3.11+**。生产采集只用 `gleaner_cli.py`，**不需要、也不安装 `mcp` 包**。`acq_mcp.py` 仅仓库内对照，勿用于生产。
+需要 **Python 3.11+**。采集入口是 `gleaner_cli.py`。
 
 ## 配置
 
@@ -19,7 +19,7 @@ pip install -r requirements.txt
 
 ## 使用（Skill + CLI）
 
-Gleaner **不再通过 MCP 暴露**。请用统一 CLI：
+用统一 CLI：
 
 ```bash
 # 就绪检查（务必先跑）
@@ -30,5 +30,3 @@ python gleaner_cli.py prepare|cnki-list|cnki|els|intl|login-hint|sources|score
 ```
 
 在 Grok 中安装用户 Skill：把仓库 `skill/gleaner/` 复制到 `~/.grok/skills/gleaner/`，并设置 `GLEANER_ROOT`。
-
-历史 MCP 模板 [`.mcp.json.example`](.mcp.json.example) 仅保留 **env 键名** 供迁移到 `.env`；`acq_mcp.py` 为 legacy，勿用于生产。

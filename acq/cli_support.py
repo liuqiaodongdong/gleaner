@@ -41,7 +41,7 @@ def _parse_dotenv(text: str) -> dict[str, str]:
 
 
 def load_credentials(root: Path) -> dict[str, str]:
-    """从 .env 与遗留 .mcp.json 收集凭据；.env 优先，mcp.json 仅 setdefault 补缺。
+    """从 .env 收集凭据。本机若还有旧 .mcp.json 的 env 段，仅补缺，不覆盖 .env。
 
     不读密钥文件内容到日志。
     """
@@ -142,7 +142,7 @@ def resolve_tiered_expression(
 ) -> tuple[str, str, str]:
     """从 search.md 解析 L1–L4 表达式。返回 (expression, search_md_path, level)。
 
-    逻辑移植自 acq_mcp._resolve_tiered_expression，root 显式传入，不依赖 PROJECT_ROOT。
+    从 search.md / topic 解析 L1–L4 式，root 显式传入。
     """
     from acq.sources.cnki_query import (
         VALID_LEVELS,

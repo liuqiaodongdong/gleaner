@@ -1,8 +1,6 @@
 # Gleaner
 
-多源学术文献采集（**Skill + CLI**）。把「检索 → 下载全文 → 归一化元数据」交给 Agent / 本机命令一键完成。
-
-> **已弃用 MCP**：`acq_mcp.py` 仅 legacy 对照，硬超时 `timeout=1800` 为已知缺陷，**勿用于生产**。请用 `gleaner_cli.py` 与 `~/.grok/skills/gleaner/`。
+多源学术文献采集（**Skill + CLI**）。把「检索 → 下载全文 → 归一化元数据」交给 Agent / 本机命令一键完成。入口是 `gleaner_cli.py` 与 `~/.grok/skills/gleaner/`。
 
 **Authors:** [liuqiaodongdong](https://github.com/liuqiaodongdong) and [Grok](https://x.ai)  
 仓库：https://github.com/liuqiaodongdong/gleaner
@@ -81,7 +79,6 @@ ACQ_PROXY=http://127.0.0.1:PORT
 - **`ACQ_PROXY` 按本机机构/校园网代理填写**（端口以客户端显示为准）。也可不写，程序会尝试读取 **Windows 系统代理**  
 - 若电脑已在校园网 / 机构 VPN 内、浏览器能直接下知网，通常**不必**再设 `ACQ_PROXY`  
 - 推荐设置 `GLEANER_ROOT` 指向本仓库根  
-- 历史 MCP 模板 [`.mcp.json.example`](.mcp.json.example) **仅作 env 键名参考**（DEPRECATED）  
 - Grok 用户 Skill：把仓库内 `skill/gleaner/` 复制到 `~/.grok/skills/gleaner/`（包装脚本会解析 ROOT 并调用 CLI）
 
 ### 4. （可选）知网登录缓存
@@ -177,7 +174,7 @@ Agent / 终端
 - 知网：无头浏览器（默认 Edge），验证码走超级鹰 9602  
 - Elsevier：Search API + Article Retrieval，全文 XML 转结构化 Markdown  
 - 国际/Elsevier 的 HTTP 请求默认绕过系统代理（`trust_env=False`），避免部分代理导致的 SSL 错误；知网取机构权限时则使用 `ACQ_PROXY` 或系统代理  
-- 长任务由 CLI 子进程执行，**默认无 MCP 式 30 分钟硬杀**；日志见 `corpus/*_run.log`
+- 长任务由 CLI 子进程执行，默认不设硬超时；日志见 `corpus/*_run.log`
 
 ---
 
@@ -196,9 +193,8 @@ python run_intl_batch.py intl_params.json
 ## 项目结构
 
 ```
-gleaner_cli.py       # 统一 CLI（推荐）
+gleaner_cli.py       # 统一 CLI
 skill/gleaner/       # 用户 Skill（复制到 ~/.grok/skills/gleaner/）
-acq_mcp.py           # LEGACY MCP 入口（勿生产）
 acq/                 # 采集核心与各源 adapter
   cli_support.py     # ROOT / env / 子进程 / 摘要
   setup_check.py     # status 实现
@@ -221,7 +217,6 @@ AGENTS.md            # 给 Agent 的使用约定（Skill+CLI）
 | 超级鹰相关报错 | 检查 `CJY_USER` / `CJY_PASS` / `CJY_SOFTID` 与积分（`score`） |
 | cookie / 登录失败 | `login-hint` → 热启动 `python login.py`（仅首次无 cookie 才 `ACQ_ALLOW_COLD_LOGIN=1`） |
 | Elsevier 0 篇 | 检索式是否过窄；机构是否订阅该刊全文（Key alone 不等于全库 PDF） |
-| 仍在用 MCP | 删除客户端里的 `gleaner` server；改用 CLI / Skill |
 
 ---
 

@@ -1,6 +1,6 @@
 # Agent 使用约定（Gleaner Skill + CLI）
 
-你正在使用 **gleaner** 学术文献采集能力。入口是 **Skill + `gleaner_cli.py`**，**不要**再走 MCP（`acq_mcp.py` / `gleaner__*` 工具已 legacy，含 timeout=1800 硬超时缺陷，勿用于生产）。
+你正在使用 **gleaner** 学术文献采集能力。入口是 **Skill + `gleaner_cli.py`**。
 
 ## 根目录与 Skill
 
@@ -9,7 +9,7 @@
 | 默认仓库根 | 见 `GLEANER_ROOT`；未设时用 `gleaner_cli.py` 所在仓库根或 CLI `--root` |
 | 环境变量 | `GLEANER_ROOT` 指向本仓库根（含 `gleaner_cli.py`） |
 | 用户 Skill | 仓库 `skill/gleaner/`，安装到 `~/.grok/skills/gleaner/` |
-| 凭据 | 优先进程环境 / `GLEANER_ROOT/.env`；Elsevier 也可 `acq/data/.elsevier_key`；遗留 `.mcp.json` 仅迁移期可读 |
+| 凭据 | 优先进程环境 / `GLEANER_ROOT/.env`；Elsevier 也可 `acq/data/.elsevier_key` |
 
 ```powershell
 $env:GLEANER_ROOT = "<本仓库绝对路径>"
@@ -77,7 +77,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 
 ### 配置位置
 
-- 推荐写在 `GLEANER_ROOT/.env`（模板：`.env.example`；键名亦可参考 `.mcp.json.example` 中的历史清单）
+- 推荐写在 `GLEANER_ROOT/.env`（模板：`.env.example`）
 - Elsevier 也可：`acq/data/.elsevier_key`（已 gitignore）
 - 系统/用户环境变量中的 `CJY_*` / `ACQ_*` / `ELSEVIER_*` 优先于 `.env`
 - **禁止**把密钥、cookies 写进仓库或提交 git
@@ -103,7 +103,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
   组式：`--concept-groups '[{"name":"sc","keywords":["supply chain"]},{"name":"gt","keywords":["green transition"]}]'`
   官方规则见 `docs/ELSEVIER_API.md`。高召回才 `--scope qs`。
 - 国际：`intl`。
-- 长任务用终端跑 CLI，**不要假设** 30 分钟内返回；勿走 legacy MCP。
+- 长任务用终端跑 CLI，**不要假设** 30 分钟内返回。
 
 ## 出错时
 

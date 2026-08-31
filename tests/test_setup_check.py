@@ -1,4 +1,4 @@
-# tests/test_setup_check.py —— 部署检查纯逻辑（不依赖 mcp 包）
+# tests/test_setup_check.py —— 部署检查纯逻辑
 import json
 from acq import setup_check
 

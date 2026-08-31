@@ -58,7 +58,7 @@ def cmd_status(_root: Path) -> int:
 
 
 def cmd_sources(root: Path) -> int:
-    """移植 acq_mcp.list_sources 逻辑；guard 读 root/acq/guard_state/，不 import FastMCP。"""
+    """列出各源状态；guard 读 root/acq/guard_state/。"""
     from acq.setup_check import check_setup
 
     setup = check_setup()
@@ -325,7 +325,7 @@ def _cmd_cnki_dispatch(
         **extra,
     }
     if level:
-        result["query"] = params_query  # 分级也带回完整式，与 MCP 一致便于排查
+        result["query"] = params_query  # 分级也带回完整式，便于排查
     _print_json(result)
     return 0 if exit_code == 0 else 1
 
@@ -350,7 +350,7 @@ def cmd_cnki(root: Path, args: argparse.Namespace) -> int:
     )
 
 
-# OpenAlex polite pool mailto；与 acq_mcp.intl_collect 默认一致
+# OpenAlex polite pool mailto
 _INTL_DEFAULT_EMAIL = "Libby_Stantoncsc@writeme.com"
 _INTL_DEFAULT_SOURCES = ["oa", "nber", "scihub"]
 
@@ -459,7 +459,7 @@ def cmd_els(root: Path, args: argparse.Namespace) -> int:
 
 
 def _parse_intl_sources(raw: str | None) -> list[str]:
-    """--sources 逗号分隔或 JSON 数组；空则用 MCP 默认。"""
+    """--sources 逗号分隔或 JSON 数组；空则用默认渠道。"""
     if raw is None or not str(raw).strip():
         return list(_INTL_DEFAULT_SOURCES)
     text = str(raw).strip()

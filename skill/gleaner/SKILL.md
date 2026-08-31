@@ -2,13 +2,13 @@
 name: gleaner
 description: >
   学术文献采集（知网 CNKI / Elsevier / 国际 OA·SciHub）。
-  用仓库 gleaner_cli.py 跑 status、prepare、cnki-list、cnki、els、intl，无 MCP、无 30 分钟硬超时。
+  用仓库 gleaner_cli.py 跑 status、prepare、cnki-list、cnki、els、intl。
   Use when: /gleaner、下知网、采文献、cnki、elsevier、国际论文、gleaner 采集。
 ---
 
 # Gleaner（Skill + CLI）
 
-用本机仓库统一 CLI 做三线学术文献采集。**不要**走 MCP。
+用本机仓库统一 CLI 做三线学术文献采集。
 
 ## 默认根目录
 
@@ -31,21 +31,19 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
    `python "$env:GLEANER_ROOT\gleaner_cli.py" status`  
    看 `lines.*.ready` / `blockers` / `next_steps_for_user`。线未 ready → 引导配置，**禁止硬采**。
 
-2. **禁止 MCP**：绝不调用 `gleaner__*` 或任何 `gleaner` MCP 工具（`cnki_collect` / `els_collect` 等旧入口）。一律用 `gleaner_cli.py`。
+2. **长任务走 shell CLI**：`cnki-list` / `cnki` / `els` / `intl` 可能超过 30 分钟。用终端执行 CLI，**不要假设**会在固定超时内返回。过程与结果看 `corpus/*_run.log` 与结束时的摘要 JSON。
 
-3. **长任务走 shell CLI**：`cnki-list` / `cnki` / `els` / `intl` 可能超过 30 分钟。用终端执行 CLI，**不要假设**会在固定超时内返回。过程与结果看 `corpus/*_run.log` 与结束时的摘要 JSON。
-
-4. **Cookie 失效**：CNKI 下载/列表报登录、验证码反复失败、或疑似会话过期时：  
+3. **Cookie 失效**：CNKI 下载/列表报登录、验证码反复失败、或疑似会话过期时：  
    - `python gleaner_cli.py login-hint`  
    - 已有 `cookies.json`：在 `GLEANER_ROOT` 下 `set ACQ_BROWSER_CHANNEL=msedge` 后 `python login.py`（热启动，禁止冷启动）  
    - 仅第一次没有 cookie：再加 `set ACQ_ALLOW_COLD_LOGIN=1`  
    完成后重跑 `status` 再采。无需个人知网账号。
 
-5. **完成后汇报**：`local_dir` 路径、`metadata_rows` / `downloaded_files` 篇数、主要标题、`log_path`。0 篇也要报，并建议是否升 level / 放宽 query。
+4. **完成后汇报**：`local_dir` 路径、`metadata_rows` / `downloaded_files` 篇数、主要标题、`log_path`。0 篇也要报，并建议是否升 level / 放宽 query。
 
-6. **细节文档**：环境与密钥见 [references/env.md](references/env.md)；标准流程见 [references/workflows.md](references/workflows.md)。
+5. **细节文档**：环境与密钥见 [references/env.md](references/env.md)；标准流程见 [references/workflows.md](references/workflows.md)。
 
-7. **禁止回显密钥**：不要打印 `CJY_*`、`ELSEVIER_API_KEY`、完整 cookies 或 `.elsevier_key` 内容。
+6. **禁止回显密钥**：不要打印 `CJY_*`、`ELSEVIER_API_KEY`、完整 cookies 或 `.elsevier_key` 内容。
 
 ## CNKI 推荐流程（分级）
 

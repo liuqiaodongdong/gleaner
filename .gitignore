@@ -8,7 +8,7 @@ acq/data/.elsevier_key
 .env.*
 !.env.example
 
-# --- 本机 MCP 绝对路径配置（用 .mcp.json.example 作模板）---
+# --- 本机旧配置（可删，勿提交）---
 .mcp.json
 
 # --- 运行产物 / 运行时状态 ---

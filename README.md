@@ -86,12 +86,16 @@ ACQ_PROXY=http://127.0.0.1:PORT
 
 ### 4. （可选）知网登录缓存
 
-减少验证码频率：
+机构会话写在 `cookies.json`（已 gitignore）。**批次间必须热启动**：加载现有 cookie，不要裸开浏览器。仅第一次没有 cookie 才允许冷启动。滑块用超级鹰 9602；过验证后才写入。无需个人知网账号。
 
 ```bash
 set ACQ_BROWSER_CHANNEL=msedge
+# 已有 cookies.json（续批次，推荐）
 python login.py
-# 或先看提示
+# 仅首次没有 cookie：
+set ACQ_ALLOW_COLD_LOGIN=1
+python login.py
+# 完整步骤
 python gleaner_cli.py login-hint
 ```
 
@@ -215,7 +219,7 @@ AGENTS.md            # 给 Agent 的使用约定（Skill+CLI）
 | Elsevier Key 缺失 | **只**按 [docs/ELSEVIER_API.md](docs/ELSEVIER_API.md) 在 dev.elsevier.com 申请 |
 | 知网无权限 / 打不开 | 检查是否在机构网/VPN，或 `ACQ_PROXY` 端口是否与本机代理软件一致 |
 | 超级鹰相关报错 | 检查 `CJY_USER` / `CJY_PASS` / `CJY_SOFTID` 与积分（`score`） |
-| cookie / 登录失败 | `login-hint` → `python login.py` |
+| cookie / 登录失败 | `login-hint` → 热启动 `python login.py`（仅首次无 cookie 才 `ACQ_ALLOW_COLD_LOGIN=1`） |
 | Elsevier 0 篇 | 检索式是否过窄；机构是否订阅该刊全文（Key alone 不等于全库 PDF） |
 | 仍在用 MCP | 删除客户端里的 `gleaner` server；改用 CLI / Skill |
 

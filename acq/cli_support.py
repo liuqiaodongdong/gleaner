@@ -171,12 +171,12 @@ def resolve_tiered_expression(
             )
             if not candidates:
                 raise FileNotFoundError(
-                    f"未找到 keyword_workspace/{topic}/*/search.md，请先 cnki_prepare / prepare"
+                    f"未找到 keyword_workspace/{topic}/*/search.md，请先 python gleaner_cli.py prepare"
                 )
             path = candidates[0]
     path = Path(path)
     if not path.is_file():
-        raise FileNotFoundError(f"search.md 不存在: {path}（请先 cnki_prepare / prepare）")
+        raise FileNotFoundError(f"search.md 不存在: {path}（请先 python gleaner_cli.py prepare）")
 
     expression = extract_level_expression(path.read_text(encoding="utf-8"), level_u)
     validate_tiered_expression(expression)

@@ -11,6 +11,15 @@ COOKIES_FILE = ROOT / "cookies.json"
 ELS_KEY_FILE = ROOT / "acq" / "data" / ".elsevier_key"
 CARSI_STATE = ROOT / "acq" / "cookies" / "carsi" / "state.json"
 
+_LOGIN_FIRST = (
+    "首次无 cookie：set ACQ_BROWSER_CHANNEL=msedge && set ACQ_ALLOW_COLD_LOGIN=1 && python login.py。"
+    "冷启动通常下不了全文，仅用于第一次建会话。"
+)
+_LOGIN_WARM = (
+    "续批次：不要设 ACQ_ALLOW_COLD_LOGIN，直接 python login.py 加载现有 cookies.json（热启动）。"
+    "过验证后才写入。详见 python gleaner_cli.py login-hint。"
+)
+
 
 def _proxy_detected() -> tuple[bool, str]:
     """返回 (是否有代理, 说明)。"""
@@ -40,7 +49,7 @@ def _cnki_cookies() -> dict:
             "ok": False,
             "status": "missing",
             "path": str(COOKIES_FILE),
-            "hint": "尚无 cookies.json。请在本机项目目录运行: python login.py（建议 set ACQ_BROWSER_CHANNEL=msedge）",
+            "hint": f"尚无 cookies.json。{_LOGIN_FIRST}",
         }
     try:
         data = json.loads(COOKIES_FILE.read_text(encoding="utf-8"))
@@ -49,7 +58,7 @@ def _cnki_cookies() -> dict:
             "ok": False,
             "status": "invalid",
             "path": str(COOKIES_FILE),
-            "hint": f"cookies.json 无法解析: {e}。请删除后重跑 python login.py",
+            "hint": f"cookies.json 无法解析: {e}。删掉坏文件后按首次处理。{_LOGIN_FIRST}",
         }
     n = len(data) if isinstance(data, list) else 0
     if n <= 0:
@@ -57,14 +66,14 @@ def _cnki_cookies() -> dict:
             "ok": False,
             "status": "empty",
             "path": str(COOKIES_FILE),
-            "hint": "cookies.json 为空。请重跑 python login.py 完成机构访问后保存",
+            "hint": f"cookies.json 为空。{_LOGIN_FIRST}",
         }
     return {
         "ok": True,
         "status": "present",
         "path": str(COOKIES_FILE),
         "cookie_count": n,
-        "hint": "已有 CNKI cookies（换网络/代理后可能失效，失效时重跑 login.py）",
+        "hint": f"已有 CNKI cookies（换网络/代理后可能失效）。失效时热启动重录。{_LOGIN_WARM}",
     }
 
 
@@ -194,8 +203,9 @@ def check_setup() -> dict:
             "chaojiying": cjy,
             "proxy": {"ok": proxy_ok, "detail": proxy_detail},
             "tools": ["cnki", "cnki-list"],
+            "cnki_ready": cnki_collect_ready,
             "agent_note": (
-                "CNKI 全文(cnki)：代理 + 超级鹰 为硬门槛；cookies(login.py) 强烈推荐。"
+                "CNKI 全文(cnki)：代理 + 超级鹰 为硬门槛；cookies 强烈推荐（login.py 热启动，仅首次 ACQ_ALLOW_COLD_LOGIN=1）。"
                 "题录(cnki-list)：主要需要代理/机构网。"
             ),
         },
@@ -235,7 +245,7 @@ def check_setup() -> dict:
             "severity": "cnki",
             "optional": True,
             "title": "录入 CNKI cookies（推荐）",
-            "action": "在项目目录执行: set ACQ_BROWSER_CHANNEL=msedge && python login.py ，完成后生成 cookies.json",
+            "action": f"{_LOGIN_FIRST} {_LOGIN_WARM}",
         })
     if not els["ok"] and els.get("status") != "disabled":
         blockers.append({
@@ -303,7 +313,7 @@ def preflight(line: str) -> dict | None:
             return None
         return {
             "error": "setup_incomplete",
-            "line": "cnki_collect",
+            "line": "cnki",
             "message": "CNKI 全文线尚未就绪，请先完成部署引导（超级鹰 + 机构代理）。",
             "setup": {
                 "chaojiying": L["chaojiying"],
@@ -313,13 +323,13 @@ def preflight(line: str) -> dict | None:
             "next_steps_for_user": s["next_steps_for_user"],
             "hint": "请先跑 python gleaner_cli.py status，按 next_steps_for_user 引导用户配置后再试 cnki。",
         }
-    if line == "cnki_list":
+    if line in ("cnki-list", "cnki_list"):
         L = s["lines"]["cnki"]
         if L["cnki_list_ready"]:
             return None
         return {
             "error": "setup_incomplete",
-            "line": "cnki_list",
+            "line": "cnki-list",
             "message": "CNKI 题录线需要可访问知网的代理/机构网。",
             "setup": {"proxy": L["proxy"], "cookies": L["cookies"]},
             "next_steps_for_user": s["next_steps_for_user"],

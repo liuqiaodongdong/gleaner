@@ -444,11 +444,9 @@ def els_collect(query: str, num: int = 25, tier: str = "1+2", year_from: str = "
 
 @mcp.tool()
 def setup_status():
-    """【部署引导·优先调用】检查超级鹰 / Elsevier API key / CNKI cookies / 代理是否已配置。
+    """【LEGACY】请改用 python gleaner_cli.py status。检查超级鹰 / Elsevier Key / cookies / 代理。
 
-    Agent 在用户首次使用本 MCP、或准备 cnki_collect/els_collect 之前必须先调本工具。
-    返回 JSON：各线 ready、blockers、next_steps_for_user（含申请网址与填写方式）。
-    不回显任何密钥明文。若有缺失项，请把 next_steps_for_user 用清单展示给用户并协助完成。
+    不回显任何密钥明文。若有缺失项，把 next_steps_for_user 展示给用户。
     """
     from acq.setup_check import check_setup
     return json.dumps(check_setup(), ensure_ascii=False, indent=2)

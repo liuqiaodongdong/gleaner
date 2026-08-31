@@ -231,8 +231,8 @@ def _cmd_cnki_dispatch(
     """cnki-list / cnki 共用：preflight → 解析检索式 → 写 params → run_logged → 摘要 JSON。"""
     from acq.setup_check import preflight
 
-    # 与 MCP 一致：浏览器启动前先做就绪检查
-    line = "cnki_list" if command == "cnki-list" else "cnki_collect"
+    # 浏览器启动前先做就绪检查
+    line = "cnki-list" if command == "cnki-list" else "cnki"
     bad = preflight(line)
     if bad:
         _print_json(bad)
@@ -582,7 +582,7 @@ def build_parser() -> argparse.ArgumentParser:
     sub.add_parser("login-hint", parents=[common], help="打印 CNKI 有头登录步骤")
 
     p_prep = sub.add_parser(
-        "prepare", parents=[common], help="CNKI 分级检索式（cnki_prepare）"
+        "prepare", parents=[common], help="CNKI 分级检索式"
     )
     p_prep.add_argument("--topic", required=True, help="研究方向/主题（目录名）")
     p_prep.add_argument(

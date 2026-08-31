@@ -77,7 +77,7 @@ python gleaner_cli.py cnki --query "数字经济" --num 10
 
 ### Cookie
 
-短会话。失败时：`python gleaner_cli.py login-hint`，再在 ROOT 执行 `python login.py`（建议 `ACQ_BROWSER_CHANNEL=msedge`）。
+短会话。失败时：`python gleaner_cli.py login-hint`，再在 ROOT 热启动 `python login.py`（建议 `ACQ_BROWSER_CHANNEL=msedge`）。已有 `cookies.json` 时不要冷启动；仅首次无 cookie 才 `ACQ_ALLOW_COLD_LOGIN=1`。无需个人知网账号。
 
 ---
 

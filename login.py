@@ -2,8 +2,9 @@
 
 用法：set ACQ_BROWSER_CHANNEL=msedge & python login.py
 检索页滑块走超级鹰 9602（与采集线同一套求解器）。
-必须已有 cookies.json（加载现有机构会话，禁止冷启动）。
-过滑块后才覆盖写入；验证页中途不改文件。
+默认热启动：加载现有 cookies.json。批次间禁止冷启动。
+仅首次没有 cookie 时：set ACQ_ALLOW_COLD_LOGIN=1
+过验证后才覆盖写入；验证页中途不改文件。无需个人知网账号。
 """
 import json
 import os

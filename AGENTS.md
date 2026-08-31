@@ -24,7 +24,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 2. 阅读返回的 `lines.*.ready`、`blockers`、`next_steps_for_user`。
 3. 若用户要用的线 `ready=false`：
    - **用清晰清单展示给用户**（申请网址、要填哪些环境变量、本地命令）。
-   - **协助用户完成配置**（写 `GLEANER_ROOT/.env`、写 `acq/data/.elsevier_key`、跑 `python login.py` 等）。
+   - **协助用户完成配置**（写 `GLEANER_ROOT/.env`、写 `acq/data/.elsevier_key`、按 `login-hint` 跑 `python login.py`：已有 cookie 热启动，仅首次才 `ACQ_ALLOW_COLD_LOGIN=1`）。
    - **不要**在未就绪时强行跑 `cnki` / `els` / `intl`（CLI 会返回 `setup_incomplete` 风格结果）。
 4. 用户表示已配置后，**再跑一次** `status` 确认，再开始采集。
 
@@ -32,7 +32,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 
 | 线 | CLI 子命令 | 硬门槛 | 推荐 |
 |---|---|---|---|
-| CNKI 全文 | `cnki` | 机构代理 `ACQ_PROXY`/系统代理 + 超级鹰 `CJY_USER/PASS/SOFTID` | `python login.py` → `cookies.json` |
+| CNKI 全文 | `cnki` | 机构代理 `ACQ_PROXY`/系统代理 + 超级鹰 `CJY_USER/PASS/SOFTID` | `login.py` 热启动 → `cookies.json`（仅首次 `ACQ_ALLOW_COLD_LOGIN=1`） |
 | CNKI 题录 | `cnki-list` | 机构代理 | cookies |
 | CNKI 分级建式 | `prepare` | 无（纯本地、不启浏览器） | Agent 先做关键词拓展 |
 | Elsevier | `els` | **官方** `ELSEVIER_API_KEY` 或 `acq/data/.elsevier_key` | 见下方官方申请流程 |
@@ -109,5 +109,5 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 
 - `error: setup_incomplete` / `ready=false` → 继续部署引导，不要重试硬跑。
 - Elsevier 缺 Key → **只**按 `docs/ELSEVIER_API.md` / 官方 Portal 引导。
-- 验证码/下载失败 → 查 `score`、代理、cookies 是否过期；`login-hint` → `python login.py`。
+- 验证码/下载失败 → 查 `score`、代理、cookies 是否过期；`login-hint` → 热启动 `python login.py`（不要冷启动续批次）。
 - 细节见 `README.md` 与 Skill `references/`。

@@ -15,6 +15,7 @@ pip install -r requirements.txt
 1. 复制 [`.env.example`](.env.example) 为 `.env`，按需填写 `CJY_*`、`ELSEVIER_API_KEY`、`ACQ_PROXY` 等（**不要**提交 git）。
 2. Elsevier 也可把 Key 单行写入 `acq/data/.elsevier_key`。
 3. 可选：设置环境变量 `GLEANER_ROOT` 指向本仓库根。
+4. 知网登录见 `python gleaner_cli.py login-hint`：已有 cookie 热启动 `python login.py`；仅首次无 cookie 才 `ACQ_ALLOW_COLD_LOGIN=1`。
 
 ## 使用（Skill + CLI）
 

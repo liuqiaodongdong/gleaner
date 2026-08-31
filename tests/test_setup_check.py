@@ -76,7 +76,10 @@ def test_preflight_blocks_cnki_and_els(monkeypatch, tmp_path):
     monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "x")
     monkeypatch.setattr(setup_check, "_proxy_detected", lambda: (False, "no"))
 
-    assert setup_check.preflight("cnki_collect")["error"] == "setup_incomplete"
+    blocked = setup_check.preflight("cnki")
+    assert blocked["error"] == "setup_incomplete"
+    assert blocked["line"] == "cnki"
+    assert setup_check.preflight("cnki_collect")["line"] == "cnki"
     assert setup_check.preflight("elsevier")["error"] == "setup_incomplete"
 
 

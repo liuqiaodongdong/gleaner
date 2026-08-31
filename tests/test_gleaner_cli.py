@@ -105,6 +105,8 @@ def test_login_hint_mentions_login_py(capsys):
     assert "login.py" in out
     assert "ACQ_BROWSER_CHANNEL" in out or "msedge" in out
     assert "超级鹰" in out
+    assert "ACQ_ALLOW_COLD_LOGIN" in out
+    assert "冷启动" in out
 
 
 def test_score_prints_result(tmp_path, monkeypatch, capsys):
@@ -243,7 +245,7 @@ def test_cnki_aborts_when_preflight_fails(tmp_path, monkeypatch, capsys):
     with (
         patch(
             "acq.setup_check.preflight",
-            return_value={"error": "setup_incomplete", "line": "cnki_collect"},
+            return_value={"error": "setup_incomplete", "line": "cnki"},
         ) as m_pf,
         patch("gleaner_cli.run_logged") as m_run,
     ):
@@ -251,7 +253,7 @@ def test_cnki_aborts_when_preflight_fails(tmp_path, monkeypatch, capsys):
             ["cnki", "--root", str(tmp_path), "--query", "x", "--out-name", "e"]
         )
     assert code != 0
-    m_pf.assert_called_once_with("cnki_collect")
+    m_pf.assert_called_once_with("cnki")
     m_run.assert_not_called()
     data = json.loads(capsys.readouterr().out)
     assert data.get("error") == "setup_incomplete"
@@ -262,7 +264,7 @@ def test_cnki_list_aborts_when_preflight_fails(tmp_path, monkeypatch, capsys):
     with (
         patch(
             "acq.setup_check.preflight",
-            return_value={"error": "setup_incomplete", "line": "cnki_list"},
+            return_value={"error": "setup_incomplete", "line": "cnki-list"},
         ) as m_pf,
         patch("gleaner_cli.run_logged") as m_run,
     ):
@@ -270,7 +272,7 @@ def test_cnki_list_aborts_when_preflight_fails(tmp_path, monkeypatch, capsys):
             ["cnki-list", "--root", str(tmp_path), "--query", "x"]
         )
     assert code != 0
-    m_pf.assert_called_once_with("cnki_list")
+    m_pf.assert_called_once_with("cnki-list")
     m_run.assert_not_called()
     data = json.loads(capsys.readouterr().out)
     assert data.get("error") == "setup_incomplete"

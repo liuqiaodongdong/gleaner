@@ -37,8 +37,9 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 
 4. **Cookie 失效**：CNKI 下载/列表报登录、验证码反复失败、或疑似会话过期时：  
    - `python gleaner_cli.py login-hint`  
-   - 或在 `GLEANER_ROOT` 下：`set ACQ_BROWSER_CHANNEL=msedge` 后 `python login.py`  
-   完成后重跑 `status` 再采。
+   - 已有 `cookies.json`：在 `GLEANER_ROOT` 下 `set ACQ_BROWSER_CHANNEL=msedge` 后 `python login.py`（热启动，禁止冷启动）  
+   - 仅第一次没有 cookie：再加 `set ACQ_ALLOW_COLD_LOGIN=1`  
+   完成后重跑 `status` 再采。无需个人知网账号。
 
 5. **完成后汇报**：`local_dir` 路径、`metadata_rows` / `downloaded_files` 篇数、主要标题、`log_path`。0 篇也要报，并建议是否升 level / 放宽 query。
 
@@ -70,6 +71,6 @@ Elsevier / 国际见 [references/workflows.md](references/workflows.md)。
 | 现象 | 处理 |
 |------|------|
 | setup / ready=false | 按 status 的 next_steps 配代理、CJY、Elsevier Key；勿重试硬采 |
-| cookie / 登录相关失败 | `login-hint` → `python login.py` |
+| cookie / 登录相关失败 | `login-hint` → 热启动 `python login.py`（仅首次 `ACQ_ALLOW_COLD_LOGIN=1`） |
 | 子进程非 0 | 读 `corpus/*_run.log` 尾部，汇报 log 路径 |
 | 0 命中 | 升 level、放宽年份或改 query；先 list 再 collect |

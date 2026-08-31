@@ -38,7 +38,7 @@ python gleaner_cli.py install-skill
 
 需要 **Python 3.11+**。知网线建议 Windows + 系统 Edge。
 
-Agent 装机：用户说「安装 skill」也必须先 `git clone` 本仓库，再 `install-skill`。只拷 `SKILL.md` 不算安装。详见 [`skill/gleaner/SKILL.md`](skill/gleaner/SKILL.md)。
+Agent 装机：用户说「安装项目」或「安装 skill」都是同一条——**第一条命令必须是 `git clone`**，再 `pip` 和 `install-skill`。只把 `SKILL.md` 拷到 `~/.cursor/skills` **不算安装**。没有仓库时可跑 [`skill/gleaner/scripts/bootstrap.py`](skill/gleaner/scripts/bootstrap.py)（会自己 clone）。约定见 [`skill/gleaner/SKILL.md`](skill/gleaner/SKILL.md)。
 
 ### 2. 准备账号（按需）
 
@@ -89,7 +89,7 @@ ACQ_PROXY=http://127.0.0.1:PORT
 
 机构会话写在 `cookies.json`（已 gitignore）。**没有这份文件就不要跑 `cnki` / `cnki-list`**，冷启动下不了全文，只会空烧超级鹰。
 
-录入由 `python login.py` **自动完成**（超级鹰过滑块后写入），不用手填 cookie、不用个人知网账号。会弹出有头浏览器。仅第一次没有文件才加 `ACQ_ALLOW_COLD_LOGIN=1`。之后批次间热启动，不要裸开。
+录入由 **Agent 自己跑** `python login.py`（脚本里超级鹰 9602 自动过滑块并写盘）。不要只跑 `login-hint` 就停，不要让用户手拖或从浏览器复制 cookie。不用个人知网账号。会弹出有头浏览器。仅第一次没有文件才加 `ACQ_ALLOW_COLD_LOGIN=1`。之后批次间热启动，不要裸开。
 
 ```bash
 set ACQ_BROWSER_CHANNEL=msedge
@@ -98,8 +98,6 @@ python login.py
 # 仅首次没有 cookie：
 set ACQ_ALLOW_COLD_LOGIN=1
 python login.py
-# 完整步骤
-python gleaner_cli.py login-hint
 ```
 
 ---
@@ -157,14 +155,21 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 
 ### 安装用户 Skill
 
-在仓库根：
+**必须先有本仓库。** 用户只说「安装 skill」时，Agent 仍要先 clone，禁止只拷 `SKILL.md`。
 
 ```powershell
+# 还没有仓库：
+git clone https://github.com/liuqiaodongdong/gleaner.git
+cd gleaner
+python -m pip install -r requirements.txt
+# 或：python skill\gleaner\scripts\bootstrap.py
+
+# 仓库已在，注册到 ~/.grok、~/.cursor、~/.codex：
 python gleaner_cli.py install-skill
 $env:GLEANER_ROOT = (Resolve-Path .).Path
 ```
 
-会同时写入 `~/.grok/skills/gleaner`、`~/.cursor/skills/gleaner`、`~/.codex/skills/gleaner`，并在每份副本里放 `.gleaner_root` 指向本仓库。当前会话仍建议设 `GLEANER_ROOT`。也可用 `GLEANER_PYTHON` 指定解释器。
+`install-skill` 会在每份 Skill 副本里写入 `.gleaner_root` 指向本仓库。当前会话仍建议设 `GLEANER_ROOT`。也可用 `GLEANER_PYTHON` 指定解释器。
 
 ---
 
@@ -202,7 +207,7 @@ python run_intl_batch.py intl_params.json
 
 ```
 gleaner_cli.py       # 统一 CLI
-skill/gleaner/       # 用户 Skill 源（install-skill 注册到 ~/.grok / ~/.cursor / ~/.codex）
+skill/gleaner/       # 用户 Skill 源（install-skill 注册；scripts/bootstrap.py 无仓库时会 clone）
 acq/                 # 采集核心与各源 adapter
   cli_support.py     # ROOT / env / 子进程 / 摘要
   setup_check.py     # status 实现

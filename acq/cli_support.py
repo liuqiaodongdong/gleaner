@@ -167,13 +167,18 @@ def run_logged(
     log_path: Path,
     env: dict | None = None,
     timeout: float | None = None,
+    append: bool = False,
 ) -> int:
     """运行子进程，stdout/stderr 行级写入 log 并 print。默认 timeout=None（无硬杀）。"""
     log_path.parent.mkdir(parents=True, exist_ok=True)
     merged = dict(os.environ)
     if env:
         merged.update(env)
-    with log_path.open("w", encoding="utf-8", errors="replace") as logf:
+    mode = "a" if append else "w"
+    with log_path.open(mode, encoding="utf-8", errors="replace") as logf:
+        if append:
+            logf.write("\n----- serial -----\n")
+            logf.flush()
         proc = subprocess.Popen(
             cmd,
             cwd=str(cwd),

@@ -71,7 +71,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 
 2. **知网先录 cookie**：`status` 里 `cookies.ok=false` 时 **禁止** 跑 `cnki` / `cnki-list`。Agent **必须自己启动** `python login.py`（超级鹰在脚本里自动过滑块并写盘）。**禁止**：只打印 `login-hint` 就停、让用户手拖滑块、让用户从浏览器复制 cookie、用浏览器工具抠 cookie、另外调用超级鹰接口。仅第一次没有文件才加 `ACQ_ALLOW_COLD_LOGIN=1`。冷启动采集下不了全文，只会空烧超级鹰。
 
-3. **知网全文必须分批**：`cnki-list` 看到 TOTAL 后，**禁止**一次 `--num` 拉满（如 200+）。每批篇数在 **40–60 随机**（省略 `--num` 由 CLI 抽；**禁止每批都写 50**）。**同一 `--out-name`** 续传（已下的会跳过）。批与批之间热启动 `python login.py` 换新 cookie，**禁止**同时开两个知网浏览器。不要申请「交互终端」；后台跑 CLI，进度看 `corpus/*_run.log`。
+3. **知网全文必须串行多批直到采够**：`cnki-list` 看到 TOTAL 后，**禁止**一次 `--num` 拉满，也**禁止只跑一批就汇报完成**。目标篇数 = 用户指定或 TOTAL。用同一 `--out-name` 加 `--until <目标>`，CLI 会每批 40–60 随机、批间自动 `login.py`。未传 `--until` 时 Agent 必须自己循环：一批结束 → 热启动 `login.py` → 同一 out-name 再 `cnki`，直到 `downloaded_files` ≥ 目标。**禁止**并行开两个知网浏览器。不要申请「交互终端」；后台跑 CLI，进度看 `corpus/*_run.log`。
 
 4. **长任务走 shell CLI**：`cnki-list` / `cnki` / `els` / `intl` 可能超过 30 分钟。用终端执行 CLI，**不要假设**会在固定超时内返回。过程与结果看 `corpus/*_run.log` 与结束时的摘要 JSON。
 
@@ -92,7 +92,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 1. Agent 按研究方向做同义发散，产出 concept groups JSON。  
 2. `prepare --topic ... --concept-groups '...'`（或 `@path`）→ `keyword_workspace/<topic>/` 与 L1–L4 式。  
 3. **先** `cnki-list --level L1 --search-md ...` 看 TOTAL。  
-4. TOTAL 够用再 `cnki --level L1 --out-name <固定名>` 全文（不要带死 `--num 50`）；剩余下一批评同一 `out-name`，批间热启动 `login.py`。  
+4. TOTAL 够用再 `cnki --level L1 --out-name <固定名> --until <TOTAL或用户目标>`（不要带死 `--num 50`，不要只跑一批）。  
 5. L1 太少且用户要更多 → 升 **L2**（用户明确同意后再 L3/L4）。
 
 概念组示例：

@@ -109,7 +109,7 @@ python login.py
 | `install-skill` | 把 `skill/gleaner` 注册到 Grok / Cursor / Codex，并写入 `.gleaner_root` |
 | `status` | 检查配置是否齐全，返回待办步骤（**建议先跑**） |
 | `prepare` | Agent 提供概念组 → 生成 L1–L4 专业检索式（`LY` 刊滤，不启浏览器） |
-| `cnki` | 知网全文；支持 `--level L1..L4` + `--search-md` 分级采集 |
+| `cnki` | 知网全文；`--until` 串行多批直到采够；支持 `--level` + `--search-md` |
 | `cnki-list` | 知网仅题录；同样支持分级 |
 | `els` | Elsevier 白名单刊检索 + 全文转 MD |
 | `intl` | 国际论文发现与下载 |
@@ -134,8 +134,8 @@ python gleaner_cli.py prepare \
 
 # 2) 先题录看 TOTAL，再全文
 python gleaner_cli.py cnki-list --level L1 --search-md "<prepare 返回的 search_md>" --num 100
-# 全文必须分批：每批 40–60 随机（省略 --num），同一 --out-name 续传；批间热启动 login.py
-python gleaner_cli.py cnki --level L1 --search-md "<search_md>" --out-name demo_topic_L1
+# 全文串行多批直到采够：--until 目标篇数（每批 40–60 随机，批间自动 login.py）
+python gleaner_cli.py cnki --level L1 --search-md "<search_md>" --out-name demo_topic_L1 --until 200
 
 # 兼容：无分级
 python gleaner_cli.py cnki --query "数字经济" --num 10 --out-name demo_cnki
@@ -224,6 +224,7 @@ AGENTS.md            # 给 Agent 的使用约定（Skill+CLI）
 
 | 现象 | 处理 |
 |------|------|
+| 只装了 Skill、没有 `gleaner_cli.py` | 先 `git clone` 本仓库，或跑 `skill/gleaner/scripts/bootstrap.py` |
 | `setup_incomplete` / 缺密钥 | 跑 `status`，按返回步骤配置 `.env` |
 | Elsevier Key 缺失 | **只**按 [docs/ELSEVIER_API.md](docs/ELSEVIER_API.md) 在 dev.elsevier.com 申请 |
 | 知网无权限 / 打不开 | 检查是否在机构网/VPN，或 `ACQ_PROXY` 端口是否与本机代理软件一致 |

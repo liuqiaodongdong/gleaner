@@ -15,9 +15,6 @@ import sys
 from pathlib import Path
 from typing import Any
 
-CNKI_BATCH_NUM_MIN = 40
-CNKI_BATCH_NUM_MAX = 60
-
 from acq.cli_support import (
     apply_credentials,
     install_user_skill,
@@ -27,6 +24,32 @@ from acq.cli_support import (
     run_logged,
     summarize_batch,
 )
+
+CNKI_BATCH_NUM_MIN = 40
+CNKI_BATCH_NUM_MAX = 60
+CNKI_SERIAL_MAX_ROUNDS = 30
+
+
+def _cnki_file_count(out_dir: Path) -> int:
+    pdf = summarize_batch(out_dir, file_glob="*.pdf")["downloaded_files"]
+    caj = summarize_batch(out_dir, file_glob="*.caj")["downloaded_files"]
+    return int(pdf) + int(caj)
+
+
+def _run_login_warm(root: Path, log_path: Path) -> int:
+    """批间热启动 login.py：有头 Edge，脚本内超级鹰过滑块。"""
+    env = dict(os.environ)
+    env["ACQ_BROWSER_CHANNEL"] = (env.get("ACQ_BROWSER_CHANNEL") or "msedge").strip()
+    env["ACQ_HEADLESS"] = "0"
+    env.pop("ACQ_ALLOW_COLD_LOGIN", None)
+    print("[gleaner] 批间热启动 python login.py", file=sys.stderr)
+    return run_logged(
+        [sys.executable, str(root / "login.py")],
+        cwd=root,
+        log_path=log_path,
+        env=env,
+        append=True,
+    )
 
 
 def _print_json(obj: Any) -> None:
@@ -206,8 +229,8 @@ def cmd_login_hint(_root: Path) -> int:
    URL 仍带 /verify 也算过了。无面板绝不整页送超级鹰。
    无需个人账号。只有超级鹰未配置或多次失败时，才允许用户手拖，拖完脚本仍会写盘。
 5. cookie 为短会话：换网络、换代理或过期后请重跑 login.py（仍加载旧 cookie）。
-   全文分批时：每批在 40–60 随机（省略 --num），同一 --out-name；
-   批间热启动 login.py，不要并行、不要每批都写死 50。
+   全文必须 --until <目标> 串行多批直到采够（每批 40–60 随机，批间自动 login.py）。
+   不要只跑一批交差，不要一次 --num 拉满，不要并行、不要每批都写死 50。
 6. 登录后：
      python gleaner_cli.py status
    查看 cookies 是否就绪。
@@ -273,9 +296,11 @@ def _cmd_cnki_dispatch(
     range_label = (getattr(args, "range_label", None) or "").strip()
     out_name = (getattr(args, "out_name", None) or "").strip()
     pro = bool(getattr(args, "pro", False))
-    num = int(getattr(args, "num", 0) or 0)
+    explicit_num = int(getattr(args, "num", 0) or 0)
+    until = max(0, int(getattr(args, "until", 0) or 0)) if command == "cnki" else 0
+    num = explicit_num
     num_randomized = False
-    if command == "cnki" and num <= 0:
+    if command == "cnki" and explicit_num <= 0 and until <= 0:
         num = random.randint(CNKI_BATCH_NUM_MIN, CNKI_BATCH_NUM_MAX)
         num_randomized = True
         print(
@@ -327,19 +352,72 @@ def _cmd_cnki_dispatch(
         params["keyword"] = params_query
 
     pfile = corpus / params_filename
-    pfile.write_text(json.dumps(params, ensure_ascii=False), encoding="utf-8")
-
     os.environ.setdefault("ACQ_HEADLESS", "1")
     os.environ.setdefault("ACQ_BROWSER_CHANNEL", "msedge")
-
     log_path = corpus / f"{batch}_run.log"
+    timeout = getattr(args, "timeout", None)
     cmd = [sys.executable, str(root / script), str(pfile)]
-    exit_code = run_logged(
-        cmd,
-        cwd=root,
-        log_path=log_path,
-        timeout=getattr(args, "timeout", None),
-    )
+
+    def _write_params(n: int) -> None:
+        params["num"] = n
+        pfile.write_text(json.dumps(params, ensure_ascii=False), encoding="utf-8")
+
+    def _run_once(n: int, *, append_log: bool) -> int:
+        _write_params(n)
+        return run_logged(
+            cmd,
+            cwd=root,
+            log_path=log_path,
+            timeout=timeout,
+            append=append_log,
+        )
+
+    serial_batches: list[int] = []
+    login_between = 0
+    if command == "cnki" and until > 0:
+        max_rounds = min(
+            CNKI_SERIAL_MAX_ROUNDS,
+            max(2, until // CNKI_BATCH_NUM_MIN + 4),
+        )
+        exit_code = 0
+        for i in range(max_rounds):
+            have = _cnki_file_count(out_dir)
+            if have >= until:
+                print(f"[gleaner] 已有 {have} 篇 ≥ 目标 {until}，串行结束", file=sys.stderr)
+                break
+            if i > 0:
+                login_between += 1
+                lc = _run_login_warm(root, corpus / f"{batch}_login.log")
+                if lc != 0:
+                    print(f"[gleaner] login.py 退出码 {lc}，停止下一批", file=sys.stderr)
+                    exit_code = lc
+                    break
+            if explicit_num > 0:
+                n = explicit_num
+            else:
+                n = random.randint(CNKI_BATCH_NUM_MIN, CNKI_BATCH_NUM_MAX)
+                num_randomized = True
+            n = max(1, min(n, until - have))
+            serial_batches.append(n)
+            num = n
+            print(
+                f"[gleaner] 串行第 {i + 1} 批 num={n} 已有={have} 目标={until}",
+                file=sys.stderr,
+            )
+            exit_code = _run_once(n, append_log=(i > 0))
+            after = _cnki_file_count(out_dir)
+            if after <= have:
+                print("[gleaner] 本批没有新增全文，停止串行（避免空转）", file=sys.stderr)
+                break
+            if exit_code != 0:
+                print(f"[gleaner] 本批退出码 {exit_code}，停止串行", file=sys.stderr)
+                break
+        extra["until"] = until
+        extra["serial_batches"] = serial_batches
+        extra["login_between"] = login_between
+    else:
+        _write_params(num)
+        exit_code = _run_once(num, append_log=False)
 
     summary = summarize_batch(out_dir, file_glob="*.pdf")
     # 全文线可能还有 .caj
@@ -590,7 +668,7 @@ def _add_cnki_args(p: argparse.ArgumentParser, *, default_num: int) -> None:
         help=(
             f"本批目标篇数（默认 {default_num}；全文 0=在 "
             f"{CNKI_BATCH_NUM_MIN}–{CNKI_BATCH_NUM_MAX} 随机，不要每批写死 50）。"
-            "同一 --out-name 续传，不要一次填满 TOTAL"
+            "同一 --out-name 续传；要采够请用 --until，不要一次填满 TOTAL"
         ),
     )
     p.add_argument(
@@ -666,6 +744,12 @@ def build_parser() -> argparse.ArgumentParser:
         "cnki", parents=[common], help="CNKI 全文（run_batch.py，默认无硬超时）"
     )
     _add_cnki_args(p_cnki, default_num=0)
+    p_cnki.add_argument(
+        "--until",
+        type=int,
+        default=0,
+        help="目标总篇数；>0 时串行多批直到采够，批间自动 login.py。0=只跑一批",
+    )
 
     p_els = sub.add_parser(
         "els", parents=[common], help="Elsevier 白名单全文（run_els_batch.py，默认无硬超时）"

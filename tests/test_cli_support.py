@@ -97,6 +97,28 @@ def test_run_logged_default_no_timeout(tmp_path, monkeypatch):
     assert log.read_text(encoding="utf-8")
 
 
+def test_run_logged_append_writes_separator(tmp_path, monkeypatch):
+    class FakePopen:
+        def __init__(self, *a, **k):
+            self.stdout = iter(["line2\n"])
+            self.returncode = 0
+
+        def wait(self, timeout=None):
+            return 0
+
+    monkeypatch.setattr(cs.subprocess, "Popen", FakePopen)
+    log = tmp_path / "t.log"
+    log.write_text("line1\n", encoding="utf-8")
+    code = cs.run_logged(
+        ["echo"], cwd=tmp_path, log_path=log, append=True
+    )
+    assert code == 0
+    text = log.read_text(encoding="utf-8")
+    assert "line1" in text
+    assert "----- serial -----" in text
+    assert "line2" in text
+
+
 def test_summarize_batch_counts(tmp_path):
     out = tmp_path / "batch"
     papers = out / "papers"

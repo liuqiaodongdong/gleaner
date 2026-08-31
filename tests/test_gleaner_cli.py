@@ -140,6 +140,7 @@ def test_login_hint_mentions_login_py(capsys):
     assert "禁止" in out or "空烧" in out
     assert "自己" in out or "不要让用户" in out
     assert "login-hint" in out or "不要只" in out
+    assert "--until" in out or "串行" in out
 
 
 def test_score_prints_result(tmp_path, monkeypatch, capsys):
@@ -159,16 +160,13 @@ def test_cnki_list_invokes_run_list(tmp_path, monkeypatch, capsys):
 
     captured: dict = {}
 
-    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None):
+    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None, append=False):
         captured["cmd"] = cmd
         captured["cwd"] = cwd
         captured["log_path"] = log_path
         captured["timeout"] = timeout
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_path.write_text("ok\n", encoding="utf-8")
-        # 模拟题录产物
-        batch_dir = tmp_path / "corpus" / "主题A_L1"
-        # slug may sanitize 主题A
         return 0
 
     def fake_summarize(out_dir, *, file_glob="*.pdf"):
@@ -218,7 +216,7 @@ def test_cnki_invokes_run_batch_keyword(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
     captured: dict = {}
 
-    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None):
+    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None, append=False):
         captured["cmd"] = cmd
         captured["timeout"] = timeout
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -394,7 +392,7 @@ def test_els_invokes_run_els_batch(tmp_path, monkeypatch, capsys):
     ]
     captured: dict = {}
 
-    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None):
+    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None, append=False):
         captured["cmd"] = cmd
         captured["timeout"] = timeout
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -473,7 +471,7 @@ def test_els_rejects_chinese_only_query(tmp_path, monkeypatch, capsys):
 def test_els_strips_tak_wrapper(tmp_path, monkeypatch):
     monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
 
-    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None):
+    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None, append=False):
         log_path.parent.mkdir(parents=True, exist_ok=True)
         log_path.write_text("ok\n", encoding="utf-8")
         return 0
@@ -516,7 +514,7 @@ def test_intl_default_sources(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
     captured: dict = {}
 
-    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None):
+    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None, append=False):
         captured["cmd"] = cmd
         captured["timeout"] = timeout
         log_path.parent.mkdir(parents=True, exist_ok=True)
@@ -599,3 +597,183 @@ def test_intl_custom_sources_and_filters(tmp_path, monkeypatch):
     assert params["sources"] == ["oa", "scihub"]
     assert params["year_from"] == "2020"
     assert params["issn"] == "1234-5678"
+
+
+def test_cnki_until_serial_runs_login_between_batches(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
+    calls: list[dict] = []
+
+    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None, append=False):
+        calls.append(
+            {
+                "cmd": [str(x) for x in cmd],
+                "append": append,
+                "headless": None if env is None else env.get("ACQ_HEADLESS"),
+                "cold": None if env is None else ("ACQ_ALLOW_COLD_LOGIN" in env),
+            }
+        )
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with log_path.open("a", encoding="utf-8") as f:
+            f.write("ok\n")
+        joined = " ".join(str(x) for x in cmd)
+        if "login.py" in joined:
+            return 0
+        pfile = tmp_path / "corpus" / "_cli_cnki_params.json"
+        n = json.loads(pfile.read_text(encoding="utf-8"))["num"]
+        papers = tmp_path / "corpus" / "serial_demo" / "papers"
+        papers.mkdir(parents=True, exist_ok=True)
+        have = len(list(papers.glob("*.pdf")))
+        for i in range(n):
+            (papers / f"p{have + i}.pdf").write_bytes(b"%PDF")
+        return 0
+
+    with (
+        patch("acq.setup_check.preflight", return_value=None),
+        patch("gleaner_cli.run_logged", side_effect=fake_run),
+        patch("gleaner_cli._try_merge_corpus", return_value=""),
+    ):
+        code = gleaner_cli.main(
+            [
+                "cnki",
+                "--root",
+                str(tmp_path),
+                "--query",
+                "x",
+                "--out-name",
+                "serial_demo",
+                "--num",
+                "5",
+                "--until",
+                "12",
+            ]
+        )
+    assert code == 0
+    batch_calls = [c for c in calls if "run_batch.py" in " ".join(c["cmd"])]
+    login_calls = [c for c in calls if "login.py" in " ".join(c["cmd"])]
+    assert [c["append"] for c in batch_calls] == [False, True, True]
+    assert len(login_calls) == 2
+    assert all(c["headless"] == "0" for c in login_calls)
+    assert all(c["cold"] is False for c in login_calls)
+    out = json.loads(capsys.readouterr().out)
+    assert out["until"] == 12
+    assert out["serial_batches"] == [5, 5, 2]
+    assert out["login_between"] == 2
+    assert out["downloaded_files"] == 12
+    assert out["num"] == 2
+    assert out["num_randomized"] is False
+
+
+def test_cnki_until_login_fail_stops(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
+    calls: list[str] = []
+
+    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None, append=False):
+        joined = " ".join(str(x) for x in cmd)
+        calls.append(joined)
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_text("x\n", encoding="utf-8")
+        if "login.py" in joined:
+            return 3
+        papers = tmp_path / "corpus" / "e" / "papers"
+        papers.mkdir(parents=True, exist_ok=True)
+        (papers / "a.pdf").write_bytes(b"%PDF")
+        return 0
+
+    with (
+        patch("acq.setup_check.preflight", return_value=None),
+        patch("gleaner_cli.run_logged", side_effect=fake_run),
+        patch("gleaner_cli._try_merge_corpus", return_value=""),
+    ):
+        code = gleaner_cli.main(
+            [
+                "cnki",
+                "--root",
+                str(tmp_path),
+                "--query",
+                "x",
+                "--out-name",
+                "e",
+                "--num",
+                "5",
+                "--until",
+                "20",
+            ]
+        )
+    assert code != 0
+    assert sum("run_batch.py" in c for c in calls) == 1
+    assert sum("login.py" in c for c in calls) == 1
+    out = json.loads(capsys.readouterr().out)
+    assert out["login_between"] == 1
+    assert out["serial_batches"] == [5]
+    assert out["exit_code"] == 3
+
+
+def test_cnki_until_no_progress_stops_without_login(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
+    calls: list[str] = []
+
+    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None, append=False):
+        calls.append(" ".join(str(x) for x in cmd))
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        log_path.write_text("x\n", encoding="utf-8")
+        return 0
+
+    with (
+        patch("acq.setup_check.preflight", return_value=None),
+        patch("gleaner_cli.run_logged", side_effect=fake_run),
+        patch("gleaner_cli._try_merge_corpus", return_value=""),
+    ):
+        code = gleaner_cli.main(
+            [
+                "cnki",
+                "--root",
+                str(tmp_path),
+                "--query",
+                "x",
+                "--out-name",
+                "e",
+                "--until",
+                "80",
+            ]
+        )
+    assert code == 0
+    assert sum("run_batch.py" in c for c in calls) == 1
+    assert sum("login.py" in c for c in calls) == 0
+    out = json.loads(capsys.readouterr().out)
+    assert out["until"] == 80
+    assert len(out["serial_batches"]) == 1
+    assert 40 <= out["serial_batches"][0] <= 60
+    assert out["num_randomized"] is True
+
+
+def test_cnki_until_already_enough_skips_run(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
+    papers = tmp_path / "corpus" / "e" / "papers"
+    papers.mkdir(parents=True)
+    for i in range(12):
+        (papers / f"p{i}.pdf").write_bytes(b"%PDF")
+
+    with (
+        patch("acq.setup_check.preflight", return_value=None),
+        patch("gleaner_cli.run_logged") as m_run,
+        patch("gleaner_cli._try_merge_corpus", return_value=""),
+    ):
+        code = gleaner_cli.main(
+            [
+                "cnki",
+                "--root",
+                str(tmp_path),
+                "--query",
+                "x",
+                "--out-name",
+                "e",
+                "--until",
+                "10",
+            ]
+        )
+    assert code == 0
+    m_run.assert_not_called()
+    out = json.loads(capsys.readouterr().out)
+    assert out["until"] == 10
+    assert out["serial_batches"] == []
+    assert out["downloaded_files"] == 12

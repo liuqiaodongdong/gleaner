@@ -29,6 +29,9 @@ python gleaner_cli.py status
 
 # 子命令
 python gleaner_cli.py install-skill|prepare|cnki-list|cnki|els|intl|login-hint|sources|score
+
+# 知网全文：--until 目标篇数，一条命令内串行多批（批间自动 login.py）
+python gleaner_cli.py cnki --level L1 --search-md "<search.md>" --out-name demo_L1 --until 200
 ```
 
 用户 Skill 用 `python gleaner_cli.py install-skill` 注册，不要手拷目录。当前会话设 `GLEANER_ROOT` 指向本仓库根。

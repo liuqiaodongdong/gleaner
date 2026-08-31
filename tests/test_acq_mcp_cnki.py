@@ -9,6 +9,9 @@ import json
 from pathlib import Path
 from unittest import mock
 
+import pytest
+
+pytest.importorskip("mcp")
 import acq_mcp
 
 

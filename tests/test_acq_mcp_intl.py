@@ -3,6 +3,10 @@
 生产入口已迁至 gleaner_cli.py；本文件仅保留 acq_mcp 注册回归。
 """
 import inspect
+
+import pytest
+
+pytest.importorskip("mcp")
 import acq_mcp
 
 

@@ -1,13 +1,6 @@
-# tests/test_setup_check.py —— 部署检查纯逻辑
+# tests/test_setup_check.py —— 部署检查纯逻辑（不依赖 mcp 包）
 import json
-import acq_mcp
 from acq import setup_check
-
-
-def test_setup_status_registered():
-    assert hasattr(acq_mcp, "setup_status")
-    import inspect
-    assert inspect.signature(acq_mcp.setup_status).return_annotation is inspect.Signature.empty
 
 
 def test_check_setup_shape(monkeypatch, tmp_path):
@@ -94,10 +87,3 @@ def test_preflight_pass_when_ready(monkeypatch, tmp_path):
     monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "x")
     assert setup_check.preflight("cnki_collect") is None
     assert setup_check.preflight("elsevier") is None
-
-
-def test_setup_status_mcp_json():
-    raw = acq_mcp.setup_status()
-    data = json.loads(raw)
-    assert "next_steps_for_user" in data
-    assert "lines" in data

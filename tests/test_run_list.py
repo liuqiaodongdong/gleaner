@@ -4,6 +4,7 @@ import os, sys, csv, json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import run_list as r
+import pytest
 
 
 # ---- 假页面：模拟"翻页 N 次、每页若干题录"的列表页，喂进 harvest 循环 ----
@@ -91,6 +92,159 @@ def test_save_csv_merges_by_title(tmp_path):
         rows = {row["title"]: row for row in csv.DictReader(f)}
     assert set(rows) == {"甲文", "丙文"}
     assert rows["甲文"]["cite_count"] == "99"        # 后写覆盖先写
+
+
+def test_details_exact_columns_pagination_and_checkpoint(tmp_path):
+    fp = FakePage([[_rec("甲"), _rec("甲")], [_rec("乙")]])
+    visited = []
+
+    def detail(item):
+        visited.append(item["title"])
+        return {"abstract": "摘要", "keywords": "数字经济;创新", "institution": "某大学",
+                "fund": "", "doi": "不得输出", "title": "不得覆盖"}
+
+    records = r.harvest(
+        fp, 2, extract_fn=fp.extract, next_fn=fp.next, detail_fn=detail,
+        save_fn=lambda rows: r.save_csv(rows, tmp_path, r.DETAIL_FIELDS),
+    )
+    assert visited == ["甲", "乙"]
+    with (tmp_path / "metadata.csv").open(encoding="utf-8-sig", newline="") as f:
+        reader = csv.DictReader(f)
+        assert reader.fieldnames == [
+            "title", "authors", "abstract", "keywords", "journal", "pub_date",
+            "institution", "fund", "cite_count", "download_count", "url",
+        ]
+        assert list(reader) == records
+    assert records[0]["title"] == "甲"
+    assert records[0]["abstract"] == "摘要"
+    assert records[0]["fund"] == ""
+    assert records[0]["cite_count"] == "0"
+    assert not (tmp_path / "papers").exists()
+
+
+def test_detail_failure_preserves_completed_rows(tmp_path):
+    fp = FakePage([[_rec("甲"), _rec("乙")]])
+
+    def detail(item):
+        if item["title"] == "乙":
+            raise RuntimeError("详情失败")
+        return {"abstract": "已完成"}
+
+    with pytest.raises(RuntimeError, match="详情失败"):
+        r.harvest(
+            fp, 2, extract_fn=fp.extract, next_fn=fp.next, detail_fn=detail,
+            save_fn=lambda rows: r.save_csv(rows, tmp_path, r.DETAIL_FIELDS),
+        )
+    with (tmp_path / "metadata.csv").open(encoding="utf-8-sig", newline="") as f:
+        rows = list(csv.DictReader(f))
+    assert [row["title"] for row in rows] == ["甲"]
+    assert rows[0]["abstract"] == "已完成"
+
+
+def test_schema_upgrade_and_reject_destructive_reuse(tmp_path):
+    r.save_csv([_rec("甲")], tmp_path)
+    r.save_csv([{**_rec("甲"), "abstract": "摘要"}], tmp_path, r.DETAIL_FIELDS)
+    before = (tmp_path / "metadata.csv").read_bytes()
+    with pytest.raises(ValueError, match="out-name"):
+        r.save_csv([_rec("乙")], tmp_path)
+    assert (tmp_path / "metadata.csv").read_bytes() == before
+    fulltext = tmp_path / "full"
+    fulltext.mkdir()
+    path = fulltext / "metadata.csv"
+    path.write_text("title,file_path\n甲,papers/a.pdf\n", encoding="utf-8-sig")
+    before = path.read_bytes()
+    with pytest.raises(ValueError, match="out-name"):
+        r.save_csv([], fulltext, r.DETAIL_FIELDS)
+    assert path.read_bytes() == before
+
+
+@pytest.mark.parametrize("fails", [False, True])
+def test_collect_detail_closes_page_and_uses_strict_mode(monkeypatch, fails):
+    from unittest.mock import Mock
+    import scraper
+
+    context = Mock()
+    page = context.new_page.return_value
+    extract = Mock(return_value={"abstract": "摘要"})
+    if fails:
+        extract.side_effect = RuntimeError("失败")
+    monkeypatch.setattr(scraper, "extract_detail_metadata", extract)
+    monkeypatch.setattr(scraper, "_random_delay", lambda _: None)
+    if fails:
+        with pytest.raises(RuntimeError):
+            r.collect_detail(context, _rec("甲"))
+    else:
+        assert r.collect_detail(context, _rec("甲")) == {"abstract": "摘要"}
+    extract.assert_called_once_with(page, "u/甲", strict=True)
+    page.close.assert_called_once()
+
+
+def test_detail_main_never_downloads(tmp_path, monkeypatch):
+    from unittest.mock import Mock
+    import browser
+    import scraper
+    import downloader
+
+    def forbidden(*args, **kwargs):
+        pytest.fail("题录模式不得调用下载器")
+
+    monkeypatch.setattr(downloader, "download_paper", forbidden)
+    monkeypatch.setattr(downloader, "is_already_downloaded", forbidden)
+    context, page = Mock(), Mock()
+    monkeypatch.setattr(browser, "launch_browser", lambda: (None, None, context, page))
+    close = Mock()
+    monkeypatch.setattr(browser, "close_browser", close)
+    monkeypatch.setattr(browser, "save_cookies_after_captcha", lambda _: None)
+    monkeypatch.setattr(scraper, "search_keyword", lambda *args: None)
+    monkeypatch.setattr(scraper, "get_total_results", lambda _: 1)
+    monkeypatch.setattr(scraper, "extract_list_items", lambda _: [_rec("甲")])
+    monkeypatch.setattr(scraper, "extract_detail_metadata", lambda *args, **kw: {"abstract": "摘要"})
+    monkeypatch.setattr(scraper, "_random_delay", lambda _: None)
+    monkeypatch.setattr(r, "sort_by_citations", lambda _: None)
+    params = tmp_path / "params.json"
+    out = tmp_path / "out"
+    params.write_text(json.dumps({"keyword": "测试", "num": 1, "details": True, "out": str(out)}),
+                      encoding="utf-8")
+    monkeypatch.setattr(sys, "argv", ["run_list.py", str(params)])
+    r.main()
+    close.assert_called_once()
+    assert sorted(p.name for p in out.iterdir()) == ["metadata.csv"]
+    with (out / "metadata.csv").open(encoding="utf-8-sig", newline="") as f:
+        assert list(csv.DictReader(f))[0]["abstract"] == "摘要"
+
+
+@pytest.mark.parametrize("strict", [False, True])
+def test_detail_extraction_retry_exhaustion(monkeypatch, strict):
+    from unittest.mock import Mock
+    import scraper
+
+    page = Mock()
+    page.goto.side_effect = RuntimeError("加载失败")
+    monkeypatch.setattr(scraper, "_check_captcha", lambda _: False)
+    monkeypatch.setattr(scraper, "_random_delay", lambda _: None)
+    monkeypatch.setattr(scraper, "MAX_RETRIES", 2)
+    if strict:
+        with pytest.raises(RuntimeError, match="论文详情采集失败"):
+            scraper.extract_detail_metadata(page, "https://example.test/paper", strict=True)
+    else:
+        result = scraper.extract_detail_metadata(page, "https://example.test/paper")
+        assert result["abstract"] == ""
+    assert page.goto.call_count == 2
+
+
+def test_strict_detail_rejects_generic_heading(monkeypatch):
+    from unittest.mock import Mock
+    import scraper
+
+    page = Mock()
+    # 拦截页也可能有 h1，不能仅凭 h1 判为论文详情。
+    page.query_selector.side_effect = lambda selector: Mock() if "h1" in selector else None
+    monkeypatch.setattr(scraper, "wait_for_captcha", lambda _: None)
+    monkeypatch.setattr(scraper.time, "sleep", lambda _: None)
+    monkeypatch.setattr(scraper, "_random_delay", lambda _: None)
+    monkeypatch.setattr(scraper, "MAX_RETRIES", 1)
+    with pytest.raises(RuntimeError, match="论文详情采集失败"):
+        scraper.extract_detail_metadata(page, "https://example.test/paper", strict=True)
 
 
 if __name__ == "__main__":

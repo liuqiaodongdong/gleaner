@@ -78,6 +78,21 @@ python gleaner_cli.py cnki --query "数字经济" --out-name demo_cnki --until 1
 # 专业检索式: --pro --query 'SU%=数字经济 AND ...'
 ```
 
+### 仅采集含摘要的 11 字段题录
+
+先 `status` 确认就绪，再运行：
+
+```powershell
+python gleaner_cli.py cnki-list --details --query "数字经济" --num 50 --out-name demo_cnki_metadata
+```
+
+支持专业式和分级检索。输出字段顺序：
+`title,authors,abstract,keywords,journal,pub_date,institution,fund,cite_count,download_count,url`。
+只访问列表和详情页，不下载 PDF/CAJ、不创建 `papers/`，完成后停止。
+详情失败会使命令失败，已完成题录逐篇保存；页面未提供的字段留空。
+使用 `--num` 控制本次条数，不使用 `--until`；重跑按题名更新。
+不要和已有全文批次共用 `--out-name`，CSV 列冲突会拒绝写入。
+
 ### Cookie
 
 **首次装机必须先录 cookie**，再 `cnki-list` / `cnki`。无 `cookies.json` 冷启动下不了全文，只会空烧超级鹰。

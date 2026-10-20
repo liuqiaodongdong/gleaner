@@ -275,7 +275,7 @@ def go_next_page(page: Page) -> bool:
     return True
 
 
-def extract_detail_metadata(page: Page, url: str) -> dict:
+def extract_detail_metadata(page: Page, url: str, *, strict: bool = False) -> dict:
     """Navigate to detail page and extract full metadata.
 
     Returns dict with keys: abstract, keywords, doi, fund, institution.
@@ -316,6 +316,11 @@ def extract_detail_metadata(page: Page, url: str) -> dict:
                     # retry navigation after solving
                     page.goto(url, wait_until="domcontentloaded", timeout=30000)
                     time.sleep(3)
+
+            if strict and not page.query_selector(
+                "#ChDivSummary, .abstract-text, .doc-top, .wx-tit"
+            ):
+                raise RuntimeError("未加载到论文详情页")
 
             # Abstract
             abstract_el = page.query_selector("#ChDivSummary, .abstract-text, [id*='ChDivSummary']")
@@ -361,4 +366,6 @@ def extract_detail_metadata(page: Page, url: str) -> dict:
             _random_delay((2, 3))
 
     print(f"  [error] giving up on {url}")
+    if strict:
+        raise RuntimeError(f"论文详情采集失败：{url}")
     return {"abstract": "", "keywords": "", "doi": "", "fund": "", "institution": ""}

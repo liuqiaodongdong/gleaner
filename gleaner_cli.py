@@ -256,6 +256,10 @@ def _cmd_cnki_dispatch(
     out_name = (getattr(args, "out_name", None) or "").strip()
     pro = bool(getattr(args, "pro", False))
     explicit_num = int(getattr(args, "num", 0) or 0)
+    details = command == "cnki-list" and bool(getattr(args, "details", False))
+    if command == "cnki-list" and explicit_num <= 0:
+        _print_json({"ok": False, "error": "--num 必须大于 0", "command": command})
+        return 1
     until = max(0, int(getattr(args, "until", 0) or 0)) if command == "cnki" else 0
     num = explicit_num
     num_randomized = False
@@ -302,9 +306,22 @@ def _cmd_cnki_dispatch(
         return 1
 
     corpus = root / "corpus"
+    if details and not out_name:
+        batch += "_metadata"
     corpus.mkdir(parents=True, exist_ok=True)
     out_dir = corpus / batch
     params: dict[str, Any] = {"num": num, "out": str(out_dir)}
+    if command == "cnki-list":
+        params["details"] = details
+        from run_list import FIELDS, DETAIL_FIELDS, check_output_schema
+        fields = DETAIL_FIELDS if details else FIELDS
+        try:
+            check_output_schema(out_dir, fields)
+        except ValueError as exc:
+            _print_json({"ok": False, "error": str(exc), "command": command})
+            return 1
+        extra["details"] = details
+        extra["fields"] = fields
     if pro:
         params.update(pro=True, expression=params_query)
     else:
@@ -659,7 +676,8 @@ def _add_cnki_args(
         "--out-name",
         default="",
         dest="out_name",
-        help="corpus 下批次目录名；同一任务必须沿用，才能续传跳过已下",
+        help=("corpus 下批次目录名；同一任务必须沿用，才能续传跳过已下"
+              if fulltext else "corpus 下题录批次目录名；重跑按题名更新"),
     )
 
 
@@ -726,6 +744,10 @@ def build_parser() -> argparse.ArgumentParser:
         "cnki-list", parents=[common], help="CNKI 仅题录（run_list.py，默认无硬超时）"
     )
     _add_cnki_args(p_list, default_num=100)
+    p_list.add_argument(
+        "--details", action="store_true",
+        help="进入详情页补充摘要、关键词、机构、基金；仅输出 11 列题录，不下载 PDF/CAJ",
+    )
 
     p_cnki = sub.add_parser(
         "cnki", parents=[common], help="CNKI 全文（run_batch.py，默认无硬超时）"

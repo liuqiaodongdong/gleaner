@@ -46,6 +46,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 |---|---|---|---|
 | CNKI 全文 | `cnki` | 机构代理 + 超级鹰 + **`cookies.json`** | 首次 `ACQ_ALLOW_COLD_LOGIN=1` 录 cookie；之后热启动 |
 | CNKI 题录 | `cnki-list` | 机构代理 + **`cookies.json`** | 同上，无 cookie 不准开浏览器 |
+| CNKI 完整题录 | `cnki-list --details` | 同 CNKI 题录 | 详情页补充摘要、关键词、机构、基金；11 列 CSV，无全文下载 |
 | CNKI 分级建式 | `prepare` | 无（纯本地、不启浏览器） | Agent 先做关键词拓展 |
 | Elsevier | `els` | **官方** `ELSEVIER_API_KEY` 或 `acq/data/.elsevier_key` | 见下方官方申请流程 |
 | 注册 Skill | `install-skill` | 仓库内有 `skill/gleaner/SKILL.md` | clone + pip 之后立刻跑 |
@@ -110,6 +111,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 
 ### 其它
 
+- 用户只要题录、摘要等字段且不下载 PDF 时，用 `cnki-list --details --num N --out-name <题录专用批次>`；支持原有关键词、专业式和分级参数。输出 `title,authors,abstract,keywords,journal,pub_date,institution,fund,cite_count,download_count,url`，不使用 `--until`，不继续全文步骤。详情加载失败会报错，已完成题录逐篇保存；页面缺失字段留空。参见 README 的“只采集完整题录”。
 - CNKI 兼容：`cnki --query ...` 或专业式（无分级、无 `LY`）。
 - Elsevier：必须用**英文**布尔式或 `--concept-groups`（英文 keywords）。默认写入题名 `title`、按 `relevance` 排序；不要丢中文知网式或裸全文 `qs`。例：
   `python gleaner_cli.py els --query "\"supply chain\" AND \"green transition\"" --num 15`

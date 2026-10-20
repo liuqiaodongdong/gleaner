@@ -10,7 +10,7 @@
 | **中国知网 CNKI** | `prepare` → `cnki-list` / `cnki` | 关键词 / 专业式 / **期刊分级 L1–L4**（`cnki_journal_tiers.json`） | PDF / CAJ / 题录 |
 | **Elsevier / ScienceDirect** | `els` | 官方 API + 期刊白名单 | Markdown（+ XML） |
 
-输出目录：`corpus/<批次>/metadata.csv` + `papers/`。
+输出目录：`corpus/<批次>/metadata.csv`；全文采集另有 `papers/`。
 
 ---
 
@@ -108,7 +108,7 @@ python login.py
 | `status` | 检查配置是否齐全，返回待办步骤（**建议先跑**） |
 | `prepare` | Agent 提供概念组 → 生成 L1–L4 专业检索式（`LY` 刊滤，不启浏览器） |
 | `cnki` | 知网全文；`--until` 串行多批直到采够；支持 `--level` + `--search-md` |
-| `cnki-list` | 知网仅题录；同样支持分级 |
+| `cnki-list` | 知网仅题录；加 `--details` 采集 11 字段（含摘要等），不下载全文；同样支持分级 |
 | `els` | Elsevier 白名单刊检索 + 全文转 MD |
 | `score` | 查询超级鹰积分 |
 | `sources` | 各源状态与配额摘要 |
@@ -142,6 +142,27 @@ python gleaner_cli.py els \
   --num 10 --tier 1+2 --year-from 2020
 
 ```
+
+### 只采集完整题录，不下载 PDF
+
+```powershell
+python gleaner_cli.py status
+python gleaner_cli.py cnki-list --details --query "数字经济" --num 50 --out-name demo_cnki_metadata
+```
+
+`--details` 会逐篇打开详情页补充摘要、关键词、机构、基金，不调用全文下载器，也不创建 `papers/`。支持 `--pro --query ...` 或 `--level L1 --search-md ...`。
+
+`corpus/<批次>/metadata.csv` 按以下顺序输出且仅输出 11 列：
+
+```text
+title,authors,abstract,keywords,journal,pub_date,institution,fund,cite_count,download_count,url
+```
+
+CSV 使用 UTF-8 BOM，方便 Excel 读取中文。页面未提供的字段留空；详情页加载失败会报错并保留此前逐篇保存的结果。按题名去重，同一批次重跑会重新采集并更新同名记录。
+
+`--num` 是本次题录目标数，默认 100，不使用全文的 `--until`。不指定 `--out-name` 时，完整题录批次名自动加 `_metadata`；指定时请使用题录专用目录。已有 CSV 含本模式以外的列（例如 `file_path`）会拒绝写入，避免丢失原数据。普通 7 列题录可升级为 11 列。
+
+省略 `--details` 仍只采列表页的 7 列。仅题录请求完成后即结束，不继续下载全文或转换。
 
 也可用 Skill 包装（先安装，见下方）：
 

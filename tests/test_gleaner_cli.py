@@ -783,3 +783,47 @@ def test_cnki_list_rejects_until(tmp_path, monkeypatch):
                 "10",
             ]
         )
+
+
+@pytest.mark.parametrize("tiered", [False, True])
+def test_cnki_list_details_dispatch(tmp_path, monkeypatch, capsys, tiered):
+    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
+    search = tmp_path / "search.md"
+    search.write_text(_MIN_SEARCH_MD, encoding="utf-8")
+    query_args = ["--level", "L1", "--search-md", str(search)] if tiered else ["--query", "数字经济"]
+    with (
+        patch("acq.setup_check.preflight", return_value=None) as preflight,
+        patch("gleaner_cli.run_logged", return_value=0) as run,
+        patch("gleaner_cli._try_merge_corpus", return_value=""),
+    ):
+        code = gleaner_cli.main(["cnki-list", "--details", "--root", str(tmp_path),
+                                 "--num", "2", *query_args])
+    assert code == 0
+    preflight.assert_called_once_with("cnki-list")
+    assert Path(run.call_args.args[0][1]).name == "run_list.py"
+    params = json.loads((tmp_path / "corpus" / "_cli_cnki_list_params.json").read_text(encoding="utf-8"))
+    assert params["details"] is True
+    assert params["num"] == 2
+    assert params["out"].endswith("_metadata")
+    result = json.loads(capsys.readouterr().out)
+    assert result["details"] is True
+    assert len(result["fields"]) == 11
+    assert result["downloaded_files"] == 0
+
+
+def test_cnki_list_details_rejects_fulltext_batch(tmp_path, monkeypatch, capsys):
+    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
+    out = tmp_path / "corpus" / "existing"
+    out.mkdir(parents=True)
+    path = out / "metadata.csv"
+    path.write_text("title,file_path\n甲,papers/a.pdf\n", encoding="utf-8-sig")
+    before = path.read_bytes()
+    with (
+        patch("acq.setup_check.preflight", return_value=None),
+        patch("gleaner_cli.run_logged") as run,
+    ):
+        code = gleaner_cli.main(["cnki-list", "--details", "--query", "x", "--out-name", "existing"])
+    assert code == 1
+    run.assert_not_called()
+    assert "out-name" in json.loads(capsys.readouterr().out)["error"]
+    assert path.read_bytes() == before

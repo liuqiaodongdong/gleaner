@@ -89,6 +89,25 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 
 ## CNKI 推荐流程（分级）
 
+### 仅完整题录（不下载全文）
+
+用户要求“只采集题录/摘要/关键词，不下载 PDF”时，用 `cnki-list --details`：
+
+```powershell
+python gleaner_cli.py status
+python gleaner_cli.py cnki-list --details --query "数字经济" --num 50 --out-name demo_cnki_metadata
+```
+
+同样支持 `--pro`、`--level` / `--search-md`。逐篇访问详情页，输出
+`title,authors,abstract,keywords,journal,pub_date,institution,fund,cite_count,download_count,url`
+这 11 列到 `corpus/<批次>/metadata.csv`，不调用下载器、不创建 `papers/`。
+此模式使用 `--num`，不使用全文专用的 `--until`，完成后停止，不继续运行 `cnki` 或转换。
+页面没有的字段留空；详情加载失败会报错，已采题录逐篇保存。重跑同名批次会重新采集并按题名更新。
+省略批次名时自动加 `_metadata`；显式指定时选题录专用批次，避免与已有全文 CSV 混用（列冲突会拒绝写入）。
+汇报题录行数、日志和失败情况；`downloaded_files=0` 是此模式的预期结果。
+
+### 需要全文时
+
 1. Agent 按研究方向做同义发散，产出 concept groups JSON。  
 2. `prepare --topic ... --concept-groups '...'`（或 `@path`）→ `keyword_workspace/<topic>/` 与 L1–L4 式。  
 3. **先** `cnki-list --level L1 --search-md ...` 看 TOTAL。  

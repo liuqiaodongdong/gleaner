@@ -17,3 +17,13 @@ def test_save_csv_unified(tmp_path):
     r.save_csv(rows, tmp_path)
     txt = (tmp_path / "metadata.csv").read_text("utf-8-sig")
     assert "source" in txt and "oa_status" in txt and "10.1/a" in txt
+
+
+def test_main_disabled_before_reading_params_or_network(monkeypatch, capsys):
+    import json
+    def unexpected_search(*args, **kwargs):
+        raise AssertionError("International discovery must not run")
+    monkeypatch.setattr(r.openalex, "search", unexpected_search)
+    monkeypatch.setattr(r.sys, "argv", ["run_intl_batch.py", "missing-params.json"])
+    assert r.main() == 1
+    assert json.loads(capsys.readouterr().out)["error"] == "line_disabled"

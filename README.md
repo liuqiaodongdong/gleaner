@@ -9,7 +9,6 @@
 |------|------|------|------|
 | **中国知网 CNKI** | `prepare` → `cnki-list` / `cnki` | 关键词 / 专业式 / **期刊分级 L1–L4**（`cnki_journal_tiers.json`） | PDF / CAJ / 题录 |
 | **Elsevier / ScienceDirect** | `els` | 官方 API + 期刊白名单 | Markdown（+ XML） |
-| **国际文献** | `intl` | OpenAlex 发现 → OA / NBER / Sci-Hub / 可选 CARSI | PDF |
 
 输出目录：`corpus/<批次>/metadata.csv` + `papers/`。
 
@@ -46,7 +45,6 @@ Agent 装机：用户说「安装项目」或「安装 skill」都是同一条�
 |------|----------|------|
 | 知网全文 | 机构网络/代理 + [超级鹰](https://www.chaojiying.com/)（验证码 9602） | 代理可用校园网/VPN；超级鹰需积分 |
 | Elsevier | **官方** API Key（免费学术额度） | 见下方；完整版 [docs/ELSEVIER_API.md](docs/ELSEVIER_API.md) |
-| 国际 OA 线 | 通常不需要 | — |
 
 首次使用请先跑：
 
@@ -112,7 +110,6 @@ python login.py
 | `cnki` | 知网全文；`--until` 串行多批直到采够；支持 `--level` + `--search-md` |
 | `cnki-list` | 知网仅题录；同样支持分级 |
 | `els` | Elsevier 白名单刊检索 + 全文转 MD |
-| `intl` | 国际论文发现与下载 |
 | `score` | 查询超级鹰积分 |
 | `sources` | 各源状态与配额摘要 |
 | `login-hint` | 知网登录 / cookie 提示 |
@@ -144,7 +141,6 @@ python gleaner_cli.py els \
   --query '("digital economy" OR digitalization) AND innovation' \
   --num 10 --tier 1+2 --year-from 2020
 
-python gleaner_cli.py intl --query "minimum wage employment" --num 15 --year-from 2018
 ```
 
 也可用 Skill 包装（先安装，见下方）：
@@ -173,20 +169,21 @@ $env:GLEANER_ROOT = (Resolve-Path .).Path
 
 ---
 
+当前仅启用 CNKI、Elsevier。国际线已停用；旧 `intl` 命令和 `run_intl_batch.py` 只返回停用提示，不发起采集。
+
 ## 工作原理（简）
 
 ```
 Agent / 终端
   └── gleaner_cli.py
         ├── CNKI  → Playwright + 代理 + 超级鹰
-        ├── Elsevier → REST API + API Key
-        └── 国际 → OpenAlex / OA / Sci-Hub / CARSI
+        └── Elsevier → REST API + API Key
               └── corpus/<批次>/
 ```
 
 - 知网：无头浏览器（默认 Edge），验证码走超级鹰 9602  
 - Elsevier：Search API + Article Retrieval，全文 XML 转结构化 Markdown  
-- 国际/Elsevier 的 HTTP 请求默认绕过系统代理（`trust_env=False`），避免部分代理导致的 SSL 错误；知网取机构权限时则使用 `ACQ_PROXY` 或系统代理  
+- Elsevier 的 HTTP 请求默认绕过系统代理（`trust_env=False`），避免部分代理导致的 SSL 错误；知网取机构权限时则使用 `ACQ_PROXY` 或系统代理
 - 长任务由 CLI 子进程执行，默认不设硬超时；日志见 `corpus/*_run.log`
 
 ---
@@ -196,7 +193,6 @@ Agent / 终端
 ```bash
 python run_batch.py params.json
 python run_els_batch.py els_params.json
-python run_intl_batch.py intl_params.json
 ```
 
 参数字段见各脚本文件头注释。统一入口仍推荐 `gleaner_cli.py`。

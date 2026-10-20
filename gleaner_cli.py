@@ -1,8 +1,8 @@
-# gleaner_cli.py — Gleaner 统一 CLI（install-skill / status / sources / score / login-hint / prepare / cnki-list / cnki / els / intl）
+# gleaner_cli.py — Gleaner 统一 CLI（install-skill / status / sources / score / login-hint / prepare / cnki-list / cnki / els）
 """用法: python gleaner_cli.py <command> [options]
 
 全局: --root PATH  --json  --timeout SEC
-子命令: install-skill | status | sources | score | login-hint | prepare | cnki-list | cnki | els | intl
+子命令: install-skill | status | sources | score | login-hint | prepare | cnki-list | cnki | els
 """
 from __future__ import annotations
 
@@ -138,46 +138,6 @@ def cmd_sources(root: Path) -> int:
                     "分级：Agent 拓展概念组→prepare→level=L1..L4；"
                     "白名单 acq/data/cnki_journal_tiers.json"
                 ),
-            },
-            {
-                "name": "openalex",
-                "type": "discovery",
-                "status": "ready",
-                "modes": ["keyword"],
-                "access": "公网API(mailto必填)",
-                "tool": "intl",
-                "note": "发现层，不直接下文",
-            },
-            {
-                "name": "oa",
-                "type": "download",
-                "status": "ready",
-                "modes": ["doi→直链"],
-                "access": "公网OA(Unpaywall/DOAJ)",
-                "tool": "intl",
-                "guard": _guard_info("oa"),
-            },
-            {
-                "name": "scihub",
-                "type": "download",
-                "status": "ready",
-                "modes": ["doi→SciHub镜像"],
-                "access": "公网直连（不走环境代理）",
-                "tool": "intl",
-                "guard": _guard_info("scihub"),
-            },
-            {
-                "name": "carsi",
-                "type": "download",
-                "status": (
-                    "ready"
-                    if L["intl"]["carsi_optional"]["ok"]
-                    else "optional_unconfigured"
-                ),
-                "modes": ["doi→机构订阅"],
-                "access": "CARSI认人不认IP，主力机本地",
-                "tool": "intl",
-                "guard": _guard_info("carsi"),
             },
             {
                 "name": "elsevier",
@@ -523,7 +483,9 @@ def cmd_els(root: Path, args: argparse.Namespace) -> int:
     sort = (getattr(args, "sort", None) or "relevance").strip()
     scope = (getattr(args, "scope", None) or "title").strip()
 
-    journals = select_journals(load_tiers(), tier)
+    all_journals = bool(getattr(args, "all_journals", False))
+    journals = ([{"name": "", "issn": "", "tier": "", "level": "不限期刊"}]
+                if all_journals else select_journals(load_tiers(), tier))
     if not journals:
         _print_json(
             {
@@ -543,6 +505,7 @@ def cmd_els(root: Path, args: argparse.Namespace) -> int:
     params: dict[str, Any] = {
         "qs": query,
         "journals": journals,
+        "all_journals": all_journals,
         "date_from": year_from,
         "per_journal": per_journal,
         "num": num,
@@ -570,6 +533,7 @@ def cmd_els(root: Path, args: argparse.Namespace) -> int:
         "query": query,
         "tier": tier,
         "journals_searched": len(journals),
+        "all_journals": all_journals,
         "log_path": str(log_path),
         "params_file": str(pfile),
         "merged_metadata": (
@@ -598,6 +562,12 @@ def _parse_intl_sources(raw: str | None) -> list[str]:
 
 def cmd_intl(root: Path, args: argparse.Namespace) -> int:
     """国际：写 params（字段同 intl_collect）→ run_intl_batch.py → 摘要 *.pdf。"""
+    from acq.setup_check import preflight
+
+    blocked = preflight("intl")
+    if blocked:
+        _print_json(blocked)
+        return 1
     query = (args.query or "").strip()
     if not query:
         _print_json({"ok": False, "error": "intl 需要 --query"})
@@ -621,6 +591,7 @@ def cmd_intl(root: Path, args: argparse.Namespace) -> int:
         "out": str(out_dir),
         "sources": sources,
         "email": email,
+        "econ_only": not bool(getattr(args, "all_disciplines", False)),
     }
     if year_from:
         params["year_from"] = year_from
@@ -717,7 +688,10 @@ def build_parser() -> argparse.ArgumentParser:
         "--timeout", type=float, default=None, help="可选长任务超时（秒）"
     )
 
-    sub = parser.add_subparsers(dest="command", required=True)
+    sub = parser.add_subparsers(
+        dest="command", required=True,
+        metavar="{install-skill,status,sources,score,login-hint,prepare,cnki-list,cnki,els}",
+    )
 
     sub.add_parser(
         "install-skill",
@@ -779,6 +753,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="英文概念组 JSON（或 @path）；组内 OR、组间 AND。有则覆盖 --query",
     )
     p_els.add_argument("--num", type=int, default=25, help="全局目标篇数上限（默认 25）")
+    p_els.add_argument("--all-journals", action="store_true", help="不使用期刊白名单，按主题检索全部期刊")
     p_els.add_argument(
         "--tier", default="1+2", help='白名单档位 "1"/"1+2"/"1+2+3"（默认 1+2）'
     )
@@ -807,10 +782,11 @@ def build_parser() -> argparse.ArgumentParser:
     p_els.add_argument("--out-name", default="", dest="out_name", help="corpus 下批次目录名")
 
     p_intl = sub.add_parser(
-        "intl", parents=[common], help="国际论文（run_intl_batch.py，默认无硬超时）"
+        "intl", parents=[common], description="国际线已停用，请使用 cnki 或 els。"
     )
     p_intl.add_argument("--query", required=True, help="英文关键词或短语")
     p_intl.add_argument("--num", type=int, default=25, help="目标篇数（默认 25）")
+    p_intl.add_argument("--all-disciplines", action="store_true", help="取消默认经济学学科过滤")
     p_intl.add_argument(
         "--sources",
         default="",

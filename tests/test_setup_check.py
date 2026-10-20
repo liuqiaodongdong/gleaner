@@ -21,7 +21,8 @@ def test_check_setup_shape(monkeypatch, tmp_path):
     assert "blockers" in s
     assert s["lines"]["cnki"]["cnki_collect_ready"] is False
     assert s["lines"]["elsevier"]["ready"] is False
-    assert s["lines"]["intl"]["ready"] is True
+    assert set(s["lines"]) == {"cnki", "elsevier"}
+    assert s["ready_any_line"] is False
     # 应引导超级鹰与 Elsevier
     ids = {b["id"] for b in s["blockers"]}
     assert "chaojiying" in ids
@@ -113,3 +114,12 @@ def test_cnki_not_ready_without_cookies(monkeypatch, tmp_path):
     blocked = setup_check.preflight("cnki")
     assert blocked["error"] == "setup_incomplete"
     assert "cookie" in blocked["message"].lower() or "cookies" in blocked["message"].lower()
+
+
+def test_intl_preflight_disabled_without_checking_credentials(monkeypatch):
+    def unexpected_setup():
+        raise AssertionError("Disabled line must not inspect credentials")
+    monkeypatch.setattr(setup_check, "check_setup", unexpected_setup)
+    blocked = setup_check.preflight("intl")
+    assert blocked["error"] == "line_disabled"
+    assert blocked["available_lines"] == ["cnki", "elsevier"]

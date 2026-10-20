@@ -37,7 +37,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
    - **用清晰清单展示给用户**（申请网址、要填哪些环境变量、本地命令）。
    - **协助用户完成配置**（写 `GLEANER_ROOT/.env`、写 `acq/data/.elsevier_key`）。
    - **知网必须先有 `cookies.json`**：没有则 Agent **自己启动** `login.py`（有头 Edge，**脚本内超级鹰自动过滑块并写盘**）。禁止只打印 `login-hint`、禁止让用户手拖或复制 cookie。仅首次加 `ACQ_ALLOW_COLD_LOGIN=1`。**禁止**无 cookie 就跑 `cnki` / `cnki-list`（冷启动下不了全文，只会空烧超级鹰）。
-   - **不要**在未就绪时强行跑 `cnki` / `els` / `intl`（CLI 会返回 `setup_incomplete`）。
+   - **不要**在未就绪时强行跑 `cnki` / `els`（CLI 会返回 `setup_incomplete`）。
 4. 用户表示已配置后，**再跑一次** `status` 确认，再开始采集。
 
 ## 各线需要什么
@@ -48,7 +48,6 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 | CNKI 题录 | `cnki-list` | 机构代理 + **`cookies.json`** | 同上，无 cookie 不准开浏览器 |
 | CNKI 分级建式 | `prepare` | 无（纯本地、不启浏览器） | Agent 先做关键词拓展 |
 | Elsevier | `els` | **官方** `ELSEVIER_API_KEY` 或 `acq/data/.elsevier_key` | 见下方官方申请流程 |
-| 国际 | `intl` | 公网（一般无需密钥） | CARSI cookie 可选 |
 | 注册 Skill | `install-skill` | 仓库内有 `skill/gleaner/SKILL.md` | clone + pip 之后立刻跑 |
 | 就绪检查 | `status` | — | 每次采集前 |
 | 源摘要 | `sources` | — | 可选 |
@@ -116,7 +115,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
   `python gleaner_cli.py els --query "\"supply chain\" AND \"green transition\"" --num 15`
   组式：`--concept-groups '[{"name":"sc","keywords":["supply chain"]},{"name":"gt","keywords":["green transition"]}]'`
   官方规则见 `docs/ELSEVIER_API.md`。高召回才 `--scope qs`。
-- 国际：`intl`。
+- 仅启用 CNKI 与 Elsevier；国际线已停用，不调用国际发现/下载渠道，不自动回退到国际线。
 - 长任务用终端跑 CLI，**不要假设** 30 分钟内返回。
 
 ## 出错时

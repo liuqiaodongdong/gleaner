@@ -41,6 +41,13 @@ def save_csv(rows, out_dir):
 
 
 def main():
+    # 兼容历史脚本入口，但在读取参数或联网前拒绝国际线采集。
+    from acq.setup_check import preflight
+
+    blocked = preflight("intl")
+    if blocked:
+        print(json.dumps(blocked, ensure_ascii=False))
+        return 1
     pf = sys.argv[1] if len(sys.argv) > 1 else "intl_params.json"
     p = json.loads(Path(pf).read_text(encoding="utf-8"))
     query, num = p.get("query", ""), int(p.get("num", 25))
@@ -61,7 +68,7 @@ def main():
     store = CookieStore(Path(__file__).parent / "acq" / "cookies" / "carsi")
     # 注意：openalex.search 的 mailto 为强制参数(无默认)，必须显式传，否则 raise
     # 先规范化 DOI（修全角连字符等 Unicode 变体），再去重，确保去重以规范化后的值比较
-    raw_metas = openalex.search(query, num, year_from=p.get("year_from"),
+    raw_metas = openalex.search(query, num, econ_only=p.get("econ_only", True), year_from=p.get("year_from"),
                                 issn=p.get("issn"), mailto=email)
     for m in raw_metas:
         m["doi"] = normalize_doi_unicode(m.get("doi") or "") or m.get("doi", "")
@@ -83,4 +90,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

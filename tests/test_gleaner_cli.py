@@ -126,7 +126,7 @@ def test_sources_reads_guard_state(tmp_path, monkeypatch, capsys):
     data = json.loads(capsys.readouterr().out)
     assert data["setup_ok"] is True
     by_name = {s["name"]: s for s in data["sources"]}
-    assert by_name["oa"]["guard"]["today_used"] == 3
+    assert set(by_name) == {"cnki", "elsevier"}
     assert by_name["cnki"]["status"] == "needs_setup"
 
 
@@ -512,93 +512,24 @@ def test_els_strips_tak_wrapper(tmp_path, monkeypatch):
     assert params["scope"] == "title"
 
 
-def test_intl_default_sources(tmp_path, monkeypatch, capsys):
+@pytest.mark.parametrize("extra", [[], ["--sources", "oa,scihub", "--year-from", "2020", "--issn", "1234-5678"]])
+def test_intl_disabled_before_subprocess_or_output(tmp_path, monkeypatch, capsys, extra):
     monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
-    captured: dict = {}
-
-    def fake_run(cmd, *, cwd, log_path, env=None, timeout=None, append=False):
-        captured["cmd"] = cmd
-        captured["timeout"] = timeout
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        log_path.write_text("intl ok\n", encoding="utf-8")
-        return 0
-
-    with (
-        patch("gleaner_cli.run_logged", side_effect=fake_run),
-        patch(
-            "gleaner_cli.summarize_batch",
-            return_value={
-                "local_dir": str(tmp_path / "corpus" / "intl_x"),
-                "metadata_csv": "",
-                "metadata_rows": 0,
-                "downloaded_files": 0,
-                "titles": [],
-            },
-        ) as m_sum,
-        patch("gleaner_cli._try_merge_corpus", return_value=""),
-    ):
-        code = gleaner_cli.main(
-            [
-                "intl",
-                "--root", str(tmp_path),
-                "--query", "minimum wage employment",
-                "--num", "3",
-                "--out-name", "intl_x",
-            ]
-        )
-    assert code == 0
-    cmd_joined = " ".join(str(x) for x in captured["cmd"])
-    assert "run_intl_batch.py" in cmd_joined
-    assert captured["timeout"] is None
-    assert m_sum.call_args.kwargs.get("file_glob") == "*.pdf"
-    pfile = tmp_path / "corpus" / "_cli_intl_params.json"
-    params = json.loads(pfile.read_text(encoding="utf-8"))
-    assert params["query"] == "minimum wage employment"
-    assert params["num"] == 3
-    assert params["sources"] == ["oa", "nber", "scihub"]
-    assert params["email"] == "Libby_Stantoncsc@writeme.com"
-    assert "intl_x" in params["out"]
-    out = json.loads(capsys.readouterr().out)
-    assert out["ok"] is True
-    assert out["command"] == "intl"
-    assert out["sources"] == ["oa", "nber", "scihub"]
+    with patch("gleaner_cli.run_logged") as run:
+        code = gleaner_cli.main(["intl", "--root", str(tmp_path), "--query", "innovation", *extra])
+    assert code == 1
+    assert json.loads(capsys.readouterr().out)["error"] == "line_disabled"
+    run.assert_not_called()
+    assert not (tmp_path / "corpus").exists()
 
 
-def test_intl_custom_sources_and_filters(tmp_path, monkeypatch):
-    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
-
-    with (
-        patch("gleaner_cli.run_logged", return_value=0),
-        patch(
-            "gleaner_cli.summarize_batch",
-            return_value={
-                "local_dir": "x",
-                "metadata_csv": "x",
-                "metadata_rows": 0,
-                "downloaded_files": 0,
-                "titles": [],
-            },
-        ),
-        patch("gleaner_cli._try_merge_corpus", return_value=""),
-    ):
-        code = gleaner_cli.main(
-            [
-                "intl",
-                "--root", str(tmp_path),
-                "--query", "innovation",
-                "--sources", "oa,scihub",
-                "--year-from", "2020",
-                "--issn", "1234-5678",
-                "--out-name", "intl_filt",
-            ]
-        )
-    assert code == 0
-    params = json.loads(
-        (tmp_path / "corpus" / "_cli_intl_params.json").read_text(encoding="utf-8")
-    )
-    assert params["sources"] == ["oa", "scihub"]
-    assert params["year_from"] == "2020"
-    assert params["issn"] == "1234-5678"
+def test_help_only_advertises_active_lines(capsys):
+    with pytest.raises(SystemExit) as exc:
+        gleaner_cli.build_parser().parse_args(["--help"])
+    assert exc.value.code == 0
+    out = capsys.readouterr().out
+    assert "cnki" in out and "els" in out
+    assert "intl" not in out
 
 
 def test_cnki_until_serial_runs_login_between_batches(tmp_path, monkeypatch, capsys):

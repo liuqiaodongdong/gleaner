@@ -111,24 +111,6 @@ Agent **自己跑** `python login.py`：超级鹰 9602 在脚本里自动过滑�
 
 ---
 
-## 3. 国际（OA / NBER / SciHub / 可选 CARSI）
-
-1. **status** → intl 一般公网即可；CARSI cookie 可选。  
-2. **intl**
-
-   ```powershell
-   python gleaner_cli.py intl `
-     --query "minimum wage employment" `
-     --num 25 `
-     --sources "oa,scihub"
-   # 可加 year-from、issn、carsi 等
-   ```
-
-3. **汇报**  
-   PDF 目录、篇数、标题、log。
-
----
-
 ## 通用约定
 
 | 项 | 说明 |

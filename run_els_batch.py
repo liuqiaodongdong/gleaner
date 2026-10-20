@@ -25,6 +25,7 @@ def _write_search_md(out_dir: Path, params: dict, journals: list):
     lines = ["# Elsevier 检索记录", "",
              f"- title/qs 布尔式: `{params.get('qs','')}`",
              f"- scope: `{params.get('scope', 'title')}`（title=题名；qs=全文，易下歪）",
+             f"- all_journals: {params.get('all_journals', False)}（True时不使用期刊白名单）",
              f"- sort: `{params.get('sort', 'relevance')}`",
              f"- date_from: {params.get('date_from','')}",
              f"- num cap: {params.get('num')}  per_journal: {params.get('per_journal')}",
@@ -83,7 +84,8 @@ def run(params: dict, session) -> dict:
         )
         # pub 是子串匹配——精确按刊名过滤，剔除同前缀的兄弟刊(如 World Development Perspectives)
         jn = _norm_title(j["name"])
-        rows = [r for r in rows if _norm_title(r.get("journal", "")) == jn]
+        if not params.get("all_journals", False):
+            rows = [r for r in rows if _norm_title(r.get("journal", "")) == jn]
         for r in rows:
             r["level"] = j.get("level", "")
             r["tier"] = j.get("tier", "")

@@ -192,7 +192,6 @@ def check_setup() -> dict:
     cnki_ck = _cnki_cookies()
     cjy = _chaojiying()
     els = _elsevier()
-    carsi = _carsi()
 
     cookies_ok = bool(cnki_ck["ok"])
     # 无 cookie 的冷启动过不了验证，只会空烧超级鹰
@@ -219,12 +218,6 @@ def check_setup() -> dict:
             "api_key": els,
             "tools": ["els"],
             "agent_note": "仅需 Elsevier API key；无需浏览器/cookies。",
-        },
-        "intl": {
-            "ready": True,
-            "carsi_optional": carsi,
-            "tools": ["intl"],
-            "agent_note": "默认 OA/NBER/Sci-Hub 无需额外密钥；CARSI 可选。",
         },
     }
 
@@ -270,7 +263,7 @@ def check_setup() -> dict:
             ),
         })
 
-    ready_any = cnki_collect_ready or lines["elsevier"]["ready"] or lines["intl"]["ready"]
+    ready_any = cnki_collect_ready or lines["elsevier"]["ready"]
     ready_all_core = cnki_collect_ready and lines["elsevier"]["ready"]
 
     next_steps = []
@@ -287,7 +280,7 @@ def check_setup() -> dict:
             next_steps.append(f"[可选/{b['severity']}] {b['title']}。{b['action']}")
 
     if not next_steps:
-        next_steps.append("核心凭据已就绪。可用 python gleaner_cli.py 跑 cnki / els / intl。")
+        next_steps.append("核心凭据已就绪。可用 python gleaner_cli.py 跑 cnki / els。")
     else:
         next_steps.insert(
             0,
@@ -314,8 +307,16 @@ def check_setup() -> dict:
 
 def preflight(line: str) -> dict | None:
     """采集前检查。ready 则返回 None；否则返回应直接给用户/agent 的 dict。"""
-    s = check_setup()
     line = (line or "").lower().strip()
+    if line in ("intl", "intl_collect", "international"):
+        return {
+            "ok": False,
+            "error": "line_disabled",
+            "line": "intl",
+            "message": "国际线已停用；Gleaner 仅保留 CNKI 与 Elsevier 采集线。",
+            "available_lines": ["cnki", "elsevier"],
+        }
+    s = check_setup()
     if line in ("cnki", "cnki_collect"):
         L = s["lines"]["cnki"]
         if L["cnki_collect_ready"]:

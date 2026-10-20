@@ -1,7 +1,7 @@
 ---
 name: gleaner
 description: >
-  学术文献采集（知网 CNKI / Elsevier / 国际 OA·SciHub）。
+  学术文献采集（知网 CNKI / Elsevier）。
   用户说「安装 skill / 注册 skill / 装 gleaner」时：必须先 git clone
   https://github.com/liuqiaodongdong/gleaner.git ，再 pip 与
   python gleaner_cli.py install-skill。只把 SKILL.md 拷到 ~/.cursor/skills 不算安装。
@@ -13,7 +13,7 @@ description: >
 
 # Gleaner（Skill + CLI）
 
-用本机仓库统一 CLI 做三线学术文献采集。
+用本机仓库统一 CLI 仅走 CNKI、Elsevier 两条采集线。国际线已停用，不调用 OpenAlex、OA、NBER、Sci-Hub 或 CARSI，也不在两条保留线路失败时自动转用国际线。
 
 ## 安装 skill = 先下载项目（禁止只拷 SKILL.md）
 
@@ -57,7 +57,7 @@ python "$env:GLEANER_ROOT\gleaner_cli.py" status
 pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 ```
 
-子命令：`install-skill` | `status` | `sources` | `score` | `login-hint` | `prepare` | `cnki-list` | `cnki` | `els` | `intl`
+子命令：`install-skill` | `status` | `sources` | `score` | `login-hint` | `prepare` | `cnki-list` | `cnki` | `els`
 
 ## 默认根目录
 
@@ -73,7 +73,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 
 3. **知网全文必须串行多批直到采够**：`cnki-list` 看到 TOTAL 后，**禁止**一次 `--num` 拉满，也**禁止只跑一批就汇报完成**。目标篇数 = 用户指定或 TOTAL。必须带同一 `--out-name` 和 `--until <目标>`（省略 `--until` 时 CLI **只跑一批**，不会替你循环）。看摘要里的 `until_reached` / `downloaded_files`，没采够不要当完成。批间 CLI 自动热启动 `login.py`。**禁止**并行开两个知网浏览器。不要申请「交互终端」；后台跑 CLI，进度看 `corpus/*_run.log`。
 
-4. **长任务走 shell CLI**：`cnki-list` / `cnki` / `els` / `intl` 可能超过 30 分钟。用终端执行 CLI，**不要假设**会在固定超时内返回。过程与结果看 `corpus/*_run.log` 与结束时的摘要 JSON。
+4. **长任务走 shell CLI**：`cnki-list` / `cnki` / `els` 可能超过 30 分钟。用终端执行 CLI，**不要假设**会在固定超时内返回。过程与结果看 `corpus/*_run.log` 与结束时的摘要 JSON。
 
 5. **Cookie 失效**：CNKI 下载/列表报登录、验证码反复失败、或疑似会话过期时：  
    - `python gleaner_cli.py login-hint`  
@@ -104,7 +104,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 ]
 ```
 
-Elsevier / 国际见 [references/workflows.md](references/workflows.md)。
+Elsevier 见 [references/workflows.md](references/workflows.md)。
 
 ## 错误速查
 

@@ -31,8 +31,10 @@ def search_journal(session, *, qs, pub, date, count=10, sort="relevance",
     """
     field = "qs" if (scope or "").lower() == "qs" else "title"
     sort_by = sort if sort in ("relevance", "date") else "relevance"
-    body = {field: qs, "pub": pub, "date": date,
+    body = {field: qs, "date": date,
             "display": {"show": clamp_show(count), "sortBy": sort_by}}
+    if pub:
+        body["pub"] = pub
     try:
         r = session.put(SEARCH_URL, headers={"Content-Type": "application/json",
                                              "Accept": "application/json"},

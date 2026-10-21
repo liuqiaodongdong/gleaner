@@ -1,5 +1,7 @@
 # Gleaner
 
+本分支提供机构登录旁路，操作入口为 `institution.ps1`，详见 [机构旁路说明](docs/INSTITUTION.md)。主目录仍使用 `main`；本 worktree 不替换全局 Skill。
+
 多源学术文献采集（**Skill + CLI**）。把「检索 → 下载全文 → 归一化元数据」交给 Agent / 本机命令一键完成。入口是 `gleaner_cli.py` 与 `~/.grok/skills/gleaner/`。
 
 **Authors:** [liuqiaodongdong](https://github.com/liuqiaodongdong) and [Grok](https://x.ai)  
@@ -97,6 +99,15 @@ python login.py
 set ACQ_ALLOW_COLD_LOGIN=1
 python login.py
 ```
+
+通过知网官方“校外访问”登录学校机构时，使用独立的机构录入模式：
+
+```powershell
+$env:ACQ_BROWSER_CHANNEL='msedge'
+python login.py --institution
+```
+
+程序打开 `https://fsso.cnki.net/`，由用户选择学校并完成认证；同一浏览器中的后台首页用于确认机构身份，连续确认后自动保存并退出。默认等待 30 分钟，可用 `--timeout 3600` 调整。此模式不加载旧 cookies，登录未完成、超时或关闭登录窗口时保留原文件。成功时先将旧文件备份至已 gitignore 的 `acq/cookies/cnki/`，再原子替换 `cookies.json`；仅保存知网 cookies，不保存学校认证站 cookies。登录与后续采集应使用相同网络线路；原有 `python login.py` 热启动流程不变。
 
 ---
 

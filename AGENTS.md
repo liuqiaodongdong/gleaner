@@ -1,5 +1,9 @@
 # Agent 使用约定（Gleaner Skill + CLI）
 
+## 本分支的机构旁路规则
+
+本 worktree 属于 `feature/cnki-institution-session`。机构登录由用户主动完成，入口为 `institution.ps1 login`（`login.py --institution`）。机构 cookies、`.env`、`.venv`、`corpus/` 都属于此目录，禁止写入主目录或覆盖全局 Skill 指向。机构模式下载批次之间禁止运行不带 `--institution` 的 `login.py`，下载期间禁止覆盖 cookies；失效、身份未确认或无进展时停止并提示用户主动登录。以下旧版“批间自动 login.py”规则仅适用于 legacy 模式。不要自动注册本 worktree 的全局 Skill。
+
 你正在使用 **gleaner** 学术文献采集能力。入口是 **Skill + `gleaner_cli.py`**。
 
 ## 装机（仓库 ↔ Skill，必须成对）

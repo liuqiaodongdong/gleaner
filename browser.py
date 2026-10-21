@@ -17,6 +17,10 @@ def _any_page_blocks_cookie_write(context: BrowserContext) -> bool:
 
 
 def _save_cookies(context: BrowserContext) -> None:
+    import os
+    if os.environ.get("ACQ_SESSION_MODE") == "institution":
+        print("[browser] 机构会话：下载期间不重新录入、不覆盖 cookies.json")
+        return
     if _any_page_blocks_cookie_write(context):
         print("[browser] 拼图还在，不覆盖 cookies.json")
         return

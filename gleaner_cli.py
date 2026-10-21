@@ -95,8 +95,25 @@ def cmd_install_skill(root: Path) -> int:
 
 def cmd_status(_root: Path) -> int:
     from acq.setup_check import check_setup
-
-    _print_json(check_setup())
+    from acq.cnki_session import resolve_session_mode
+    payload = check_setup()
+    try:
+        mode = resolve_session_mode(_root)
+        payload["session_mode"] = mode
+        if mode == "institution":
+            payload["lines"]["cnki"]["cookies"]["hint"] = "机构会话：下载期间不自动重录或覆盖；失效时主动运行 python login.py --institution"
+    except ValueError as exc:
+        payload.update(ok=False, session_mode="institution", session_error=str(exc))
+        cnki = payload.get("lines", {}).get("cnki", {})
+        for key in ("ready", "cnki_collect_ready", "cnki_list_ready", "cnki_ready"):
+            cnki[key] = False
+        cnki.get("cookies", {}).update(ok=False, status="session_invalid", hint=str(exc))
+        payload.setdefault("blockers", []).append({"id": "institution_session", "severity": "cnki",
+                                                   "title": "机构会话不可用", "action": "主动运行 python login.py --institution"})
+        payload.setdefault("next_steps_for_user", []).append(str(exc))
+        payload["ready_any_line"] = bool(payload.get("lines", {}).get("elsevier", {}).get("ready"))
+        payload["ready_all_core"] = False
+    _print_json(payload)
     return 0
 
 
@@ -240,6 +257,14 @@ def _cmd_cnki_dispatch(
 ) -> int:
     """cnki-list / cnki 共用：preflight → 解析检索式 → 写 params → run_logged → 摘要 JSON。"""
     from acq.setup_check import preflight
+    from acq.cnki_session import resolve_session_mode
+
+    try:
+        session_mode = resolve_session_mode(root, getattr(args, "session_mode", "auto"))
+    except ValueError as exc:
+        _print_json({"ok": False, "error": "institution_session_invalid", "message": str(exc),
+                     "next_action": "python login.py --institution"})
+        return 1
 
     # 浏览器启动前先做就绪检查
     line = "cnki-list" if command == "cnki-list" else "cnki"
@@ -344,6 +369,7 @@ def _cmd_cnki_dispatch(
             cmd,
             cwd=root,
             log_path=log_path,
+            env={"ACQ_SESSION_MODE": session_mode},
             timeout=timeout,
             append=append_log,
         )
@@ -359,7 +385,7 @@ def _cmd_cnki_dispatch(
             if have >= until:
                 print(f"[gleaner] 已有 {have} 篇 ≥ 目标 {until}，串行结束", file=sys.stderr)
                 break
-            if i > 0:
+            if i > 0 and session_mode != "institution":
                 login_between += 1
                 lc = _run_login_warm(root, corpus / f"{batch}_login.log")
                 if lc != 0:
@@ -400,10 +426,13 @@ def _cmd_cnki_dispatch(
         summary["downloaded_files"] = summary["downloaded_files"] + caj["downloaded_files"]
 
     downloaded = int(summary.get("downloaded_files") or 0)
+    extra["session_mode"] = session_mode
     until_reached = until <= 0 or downloaded >= until
     if until > 0:
         extra["until_reached"] = until_reached
         if not until_reached:
+            if session_mode == "institution":
+                extra["next_action"] = "核对下载日志；如机构会话失效，请主动运行 python login.py --institution"
             print(
                 f"[gleaner] 未达目标：已有 {downloaded} < {until}",
                 file=sys.stderr,
@@ -648,6 +677,8 @@ def cmd_intl(root: Path, args: argparse.Namespace) -> int:
 def _add_cnki_args(
     p: argparse.ArgumentParser, *, default_num: int, fulltext: bool = False
 ) -> None:
+    p.add_argument("--session-mode", choices=["auto", "legacy", "institution"], default="auto",
+                   help="auto 按当前目录机构会话标记选择；institution 禁止下载期间自动重录和覆盖 cookies；legacy 保留原流程")
     p.add_argument("--level", default="", help="分级 L1–L4；非空则走分级专业式")
     p.add_argument("--search-md", default="", dest="search_md", help="search.md 路径")
     p.add_argument("--topic", default="", help="无 search-md 时定位 keyword_workspace/<topic>")
@@ -757,7 +788,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--until",
         type=int,
         default=0,
-        help="目标总篇数；>0 时串行多批直到采够，批间自动 login.py。0=只跑一批",
+        help="目标总篇数；>0 时串行多批。legacy 批间自动 login.py；institution 不自动重录。0=只跑一批",
     )
 
     p_els = sub.add_parser(

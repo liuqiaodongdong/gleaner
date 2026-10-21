@@ -64,6 +64,11 @@ def main():
             search_professional(page, expression)
         else:
             search_keyword(page, keyword)
+        if os.environ.get("ACQ_SESSION_MODE") == "institution":
+            from acq.cnki_session import wait_for_institution_identity
+            if not wait_for_institution_identity(page):
+                print("[batch] 未确认机构身份，停止下载并保留 cookies；请主动运行 python login.py --institution", flush=True)
+                raise SystemExit(2)
         save_cookies_after_captcha(context)
         total = get_total_results(page)
         print("[batch] TOTAL=", total)

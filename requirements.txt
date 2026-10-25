@@ -2,4 +2,5 @@ playwright>=1.40
 requests>=2.31
 lxml>=5.0
 pandas>=2.0
+pypdf>=5.0
 pytest>=8.0

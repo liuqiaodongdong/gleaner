@@ -1,5 +1,5 @@
 # run_els_batch.py —— Elsevier 订阅线批量入口（主力机本地，官方 API + API key）
-# 读 JSON {qs, journals[], date_from, per_journal, num, out} → 逐刊检索→去重→取全文转MD→CSV+search.md
+# 读 JSON {qs, journals[], date_from, per_journal, num, out} → 逐刊检索→去重→PDF+XML→CSV+search.md
 import csv, datetime, json, random, re, sys, time
 from pathlib import Path
 from acq.sources import els
@@ -7,7 +7,9 @@ from acq.els_config import get_api_key
 from acq.sources.els_query import normalize_els_query
 
 FIELDS = ["source", "doi", "title", "authors", "journal", "year", "level", "tier",
-          "openaccess", "url", "file_path", "file_type", "file_xml"]
+          "openaccess", "url", "file_path", "file_type", "file_xml",
+          "download_status", "download_error", "pdf_pages", "expected_pdf_pages",
+          "pdf_page_count_verified"]
 
 
 def _sleep(a, b):
@@ -96,24 +98,29 @@ def run(params: dict, session) -> dict:
             break
     picked = _round_robin_pick(buckets, num)
 
-    # 2) 取全文→MD
+    # 2) 全文 XML + 正文对象 PDF；按论文计数，XML 单独成功时保留并标注。
     rows_out = []
     for r in picked:
         doi = r["doi"]
         stem = doi.replace("/", "_")
-        md = papers / f"{stem}.md"; xmlp = papers / f"{stem}.xml"
-        ok = els.download_els(session, doi, md, xmlp)
+        pdf = papers / f"{stem}.pdf"; xmlp = papers / f"{stem}.xml"
+        result = els.download_els(session, doi, pdf, xmlp)
         rows_out.append({
             "source": "elsevier", "doi": doi, "title": r.get("title", ""),
             "authors": r.get("authors", ""), "journal": r.get("journal", ""),
             "year": r.get("year", ""), "level": r.get("level", ""), "tier": r.get("tier", ""),
             "openaccess": r.get("openaccess", ""),
             "url": f"https://doi.org/{doi}",
-            "file_path": str(md) if ok else "", "file_type": "MD" if ok else "",
-            "file_xml": str(xmlp) if ok else "",
+            "file_path": str(pdf) if result["pdf_ok"] else "",
+            "file_type": "PDF" if result["pdf_ok"] else "",
+            "file_xml": str(xmlp) if result["xml_ok"] else "",
+            "download_status": "complete" if result["ok"] else "xml_only" if result["xml_ok"] else "failed",
+            "download_error": result["error"], "pdf_pages": result["pdf_pages"],
+            "expected_pdf_pages": result["expected_pdf_pages"],
+            "pdf_page_count_verified": result["pdf_page_count_verified"],
         })
-        if ok:
-            _sleep(0.8, 1.8)
+        print(json.dumps({"doi": doi, **result}, ensure_ascii=False), flush=True)
+        _sleep(0.8, 1.8)
 
     # 3) CSV + search.md
     tmp = out_dir / "metadata.csv.tmp"
@@ -124,7 +131,11 @@ def run(params: dict, session) -> dict:
             w.writerow(row)
     tmp.replace(out_dir / "metadata.csv")
     _write_search_md(out_dir, params, journals)
-    return {"found": len(picked), "downloaded": sum(1 for r in rows_out if r["file_path"])}
+    downloaded = sum(1 for r in rows_out if r["download_status"] == "complete")
+    return {"ok": bool(picked) and downloaded == len(picked),
+            "found": len(picked), "downloaded": downloaded,
+            "downloaded_xml": sum(1 for r in rows_out if r["file_xml"]),
+            "failed_downloads": len(picked) - downloaded}
 
 
 def main():
@@ -133,7 +144,8 @@ def main():
     session = els.make_session(get_api_key())
     res = run(params, session)
     print(json.dumps(res, ensure_ascii=False))
+    return 0 if res["ok"] else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

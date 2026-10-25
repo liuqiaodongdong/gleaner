@@ -123,7 +123,7 @@ python gleaner_cli.py cnki-list --details --query "数字经济" --num 50 --out-
 ]
 ```
 
-Elsevier 见 [references/workflows.md](references/workflows.md)。
+Elsevier 默认同时下载 **完整 PDF + XML**；PDF 走正文 Object Retrieval 对象接口。`downloaded_files` 统计完整 PDF，XML 单独统计；仅 XML 成功的论文要报告失败原因，不计入完整下载。详见 [references/workflows.md](references/workflows.md)。
 
 ## 错误速查
 

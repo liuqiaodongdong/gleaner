@@ -122,7 +122,10 @@ Agent **自己跑** `python login.py`：超级鹰 9602 在脚本里自动过滑�
    ```
 
 3. **汇报**  
-   `corpus/<batch>/` 下 md/xml 数量与路径；日志 `corpus/*_run.log`。
+   `corpus/<batch>/papers/` 下完整 PDF + XML；`downloaded_files` 为 PDF 篇数，`downloaded_xml` 为 XML 数量。
+   `metadata.csv` 的 `file_path` 指向 PDF、`file_xml` 指向 XML；PDF 失败时保留 XML，并报告 `download_error`，不计为完整下载。零下载或部分失败返回 `ok=false`。
+   PDF 从文章正文 Object Retrieval 对象下载，校验 DOI/题名和官方页数；不使用普通 Article Retrieval 的单页 PDF 预览。
+   日志 `corpus/*_run.log`。
 
 ---
 

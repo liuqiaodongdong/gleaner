@@ -439,8 +439,8 @@ def test_els_invokes_run_els_batch(tmp_path, monkeypatch, capsys):
     cmd_joined = " ".join(str(x) for x in captured["cmd"])
     assert "run_els_batch.py" in cmd_joined
     assert captured["timeout"] is None
-    # summarize 应传 *.md
-    assert m_sum.call_args.kwargs.get("file_glob") == "*.md"
+    # PDF 为主计数，XML 单独计数
+    assert [c.kwargs["file_glob"] for c in m_sum.call_args_list] == ["*.pdf", "*.xml"]
     pfile = tmp_path / "corpus" / "_cli_els_params.json"
     params = json.loads(pfile.read_text(encoding="utf-8"))
     assert params["qs"] == '("digital economy") AND innovation'
@@ -468,6 +468,33 @@ def test_els_rejects_chinese_only_query(tmp_path, monkeypatch, capsys):
     data = json.loads(capsys.readouterr().out)
     assert data.get("ok") is False
     assert "英文" in data.get("error", "")
+
+
+@pytest.mark.parametrize("pdf_count,xml_count,exit_code,expected_ok", [
+    (0, 2, 1, False), (1, 2, 1, False), (2, 2, 0, True), (0, 0, 0, False),
+])
+def test_els_reports_pdf_and_xml_counts(tmp_path, monkeypatch, capsys, pdf_count, xml_count, exit_code, expected_ok):
+    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
+    def fake_run(cmd, **kwargs):
+        papers = tmp_path / "corpus" / "counts" / "papers"
+        papers.mkdir(parents=True)
+        for i in range(pdf_count):
+            (papers / f"{i}.pdf").write_bytes(b"PDF stub")
+        for i in range(xml_count):
+            (papers / f"{i}.xml").write_bytes(b"XML stub")
+        (papers / "old.md").write_text("legacy", encoding="utf-8")
+        (papers.parent / "metadata.csv").write_text("title\nA\nB\n", encoding="utf-8")
+        return exit_code
+    with (patch("acq.setup_check.preflight", return_value=None),
+          patch("gleaner_cli.run_logged", side_effect=fake_run),
+          patch("gleaner_cli._try_merge_corpus", return_value="merged.csv")):
+        code = gleaner_cli.main(["els", "--root", str(tmp_path), "--query", "innovation", "--all-journals", "--out-name", "counts"])
+    result = json.loads(capsys.readouterr().out)
+    assert result["ok"] is expected_ok
+    assert (code == 0) is expected_ok
+    assert result["downloaded_files"] == pdf_count
+    assert result["downloaded_xml"] == xml_count
+    assert result["failed_downloads"] == 2 - pdf_count
 
 
 def test_els_strips_tak_wrapper(tmp_path, monkeypatch):
@@ -506,7 +533,7 @@ def test_els_strips_tak_wrapper(tmp_path, monkeypatch):
                 "--out-name", "els_tak",
             ]
         )
-    assert code == 0
+    assert code == 1  # 没有下载到 PDF，不能报告成功
     params = json.loads((tmp_path / "corpus" / "_cli_els_params.json").read_text(encoding="utf-8"))
     assert params["qs"] == '"supply chain" AND "green transition"'
     assert params["scope"] == "title"

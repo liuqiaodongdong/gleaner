@@ -143,7 +143,7 @@ def cmd_sources(root: Path) -> int:
                 "name": "elsevier",
                 "type": "paper",
                 "status": "ready" if L["elsevier"]["ready"] else "needs_setup",
-                "modes": ["title题名布尔+relevance+白名单tier→取全文转MD"],
+                "modes": ["title题名布尔+relevance+白名单tier→完整PDF+XML"],
                 "access": "主力机本地，Elsevier官方API+API key",
                 "tool": "els",
                 "ready": L["elsevier"]["ready"],
@@ -456,7 +456,7 @@ _INTL_DEFAULT_SOURCES = ["oa", "nber", "scihub"]
 
 
 def cmd_els(root: Path, args: argparse.Namespace) -> int:
-    """Elsevier：preflight → 白名单选刊 → params → run_els_batch.py → 摘要 *.md。"""
+    """Elsevier：preflight → 选刊 → run_els_batch.py → 完整 PDF + XML 摘要。"""
     from acq.setup_check import preflight
     from acq.sources.els_query import (
         build_qs,
@@ -542,9 +542,11 @@ def cmd_els(root: Path, args: argparse.Namespace) -> int:
         timeout=getattr(args, "timeout", None),
     )
 
-    summary = summarize_batch(out_dir, file_glob="*.md")
+    summary = summarize_batch(out_dir, file_glob="*.pdf")
+    xml_count = summarize_batch(out_dir, file_glob="*.xml")["downloaded_files"]
+    ok = exit_code == 0 and summary["downloaded_files"] > 0
     result: dict[str, Any] = {
-        "ok": exit_code == 0,
+        "ok": ok,
         "exit_code": exit_code,
         "command": "els",
         "query": query,
@@ -557,9 +559,11 @@ def cmd_els(root: Path, args: argparse.Namespace) -> int:
             _try_merge_corpus(root) if exit_code == 0 else None
         ),
         **summary,
+        "downloaded_xml": xml_count,
+        "failed_downloads": max(0, summary["metadata_rows"] - summary["downloaded_files"]),
     }
     _print_json(result)
-    return 0 if exit_code == 0 else 1
+    return 0 if ok else 1
 
 
 def _parse_intl_sources(raw: str | None) -> list[str]:

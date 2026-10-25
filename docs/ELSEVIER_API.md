@@ -59,7 +59,8 @@ acq/data/.elsevier_key
 | 用途 | 接口 | 说明 |
 |------|------|------|
 | 检索 | ScienceDirect Search API V2 | `PUT https://api.elsevier.com/content/search/sciencedirect`；默认写入 **title**（题名），`sortBy=relevance` |
-| 全文 | Article Retrieval | `GET .../content/article/doi/{doi}?view=FULL`，取 XML 再转 Markdown |
+| 全文 XML | Article Retrieval | `GET .../content/article/doi/{doi}?view=FULL`，保存全文 XML |
+| 完整 PDF | Object Retrieval | 从 XML 或对象列表定位 `1-s2.0-…-main.pdf`，通过 `/content/object/eid/{eid}` 下载 |
 
 请求头使用官方方式：`X-ELS-APIKey: <your_key>`（见 `acq/sources/els.py`）。
 
@@ -84,7 +85,10 @@ python gleaner_cli.py els --concept-groups "[{\"name\":\"sc\",\"keywords\":[\"su
 1. **API Key ≠ 自动拥有全库 PDF**  
    - Key 主要用于调用官方 API、遵守配额。  
    - **订阅全文**通常还依赖机构订阅权益；学校未订的刊/五大顶刊等可能只有题录或拿不到全文 XML。  
-   - 本项目对订阅文章走 **全文 XML → MD**（实测部分 PDF 端点仅封面预览）。
+   - 本项目同时保存 **完整 PDF + XML**。普通 Article Retrieval PDF 可能只返回一页预览，因此 PDF 使用正文 Object Retrieval 接口。
+   - PDF 检查文件格式、可解析性、DOI/题名，并在 XML 提供 `web-pdf-page-count` 时核对页数。XML 缺少页数时，多页正文可保存但标记 `pdf_page_count_verified=false`；未经页数确认的单页文件判为失败。
+   - `metadata.csv` 的 `file_path` 指向 PDF，`file_xml` 指向 XML。PDF 失败时保留有效 XML，记录 `download_status=xml_only` 和 `download_error`，不计入完整下载。
+   - CLI 的 `downloaded_files` 按 PDF 篇数统计，`downloaded_xml` 单独统计 XML；零下载或部分失败时 `ok=false`，进程返回非零状态。
 
 2. **不要让用户去**  
    - 购买来路不明的「Elsevier API」  

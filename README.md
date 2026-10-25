@@ -8,7 +8,7 @@
 | 来源 | CLI | 说明 | 产物 |
 |------|------|------|------|
 | **中国知网 CNKI** | `prepare` → `cnki-list` / `cnki` | 关键词 / 专业式 / **期刊分级 L1–L4**（`cnki_journal_tiers.json`） | PDF / CAJ / 题录 |
-| **Elsevier / ScienceDirect** | `els` | 官方 API + 期刊白名单 | Markdown（+ XML） |
+| **Elsevier / ScienceDirect** | `els` | 官方 API + 期刊白名单 | 完整 PDF + XML |
 
 输出目录：`corpus/<批次>/metadata.csv`；全文采集另有 `papers/`。
 
@@ -203,7 +203,7 @@ Agent / 终端
 ```
 
 - 知网：无头浏览器（默认 Edge），验证码走超级鹰 9602  
-- Elsevier：Search API + Article Retrieval，全文 XML 转结构化 Markdown  
+- Elsevier：Search API + Article Retrieval + Object Retrieval，同时保存完整 PDF 和全文 XML
 - Elsevier 的 HTTP 请求默认绕过系统代理（`trust_env=False`），避免部分代理导致的 SSL 错误；知网取机构权限时则使用 `ACQ_PROXY` 或系统代理
 - 长任务由 CLI 子进程执行，默认不设硬超时；日志见 `corpus/*_run.log`
 

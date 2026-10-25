@@ -21,7 +21,9 @@ def test_all_journals_keeps_property_journal(tmp_path, monkeypatch):
     monkeypatch.setattr(els, 'search_journal', lambda *a, **k: [
         {'doi': '10.1234/property', 'title': 'Real estate operations',
          'journal': 'Property Management', 'year': '2024'}])
-    monkeypatch.setattr(els, 'download_els', lambda *a, **k: False)
+    monkeypatch.setattr(els, 'download_els', lambda *a, **k: {
+        'ok': False, 'pdf_ok': False, 'xml_ok': False, 'error': 'xml_http_403',
+        'pdf_pages': None, 'expected_pdf_pages': None, 'pdf_page_count_verified': False})
     monkeypatch.setattr(run_els_batch, '_sleep', lambda *a: None)
     result = run_els_batch.run({'qs': 'property', 'out': str(tmp_path),
         'all_journals': True, 'journals': [{'name': ''}]}, session=object())

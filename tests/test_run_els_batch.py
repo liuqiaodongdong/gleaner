@@ -8,11 +8,12 @@ def csv_rows(p):
         return list(csv.DictReader(f))
 
 
-def _fake_md_download(session, doi, out_md, out_xml, *, timeout=90):
-    Path(out_md).parent.mkdir(parents=True, exist_ok=True)
-    Path(out_md).write_text("# md " + doi, encoding="utf-8")
+def _fake_pdf_download(session, doi, out_pdf, out_xml, *, timeout=90):
+    Path(out_pdf).parent.mkdir(parents=True, exist_ok=True)
+    Path(out_pdf).write_bytes(b"%PDF test stub")
     Path(out_xml).write_bytes(b"<xml/>")
-    return True
+    return {"ok": True, "pdf_ok": True, "xml_ok": True, "error": "",
+            "pdf_pages": 2, "expected_pdf_pages": 2, "pdf_page_count_verified": True}
 
 
 def test_run_dedupes_and_writes_csv(tmp_path, monkeypatch):
@@ -27,7 +28,7 @@ def test_run_dedupes_and_writes_csv(tmp_path, monkeypatch):
                  "openaccess": False, "pii": "", "authors": "Y"}]
 
     monkeypatch.setattr(R.els, "search_journal", fake_search)
-    monkeypatch.setattr(R.els, "download_els", _fake_md_download)
+    monkeypatch.setattr(R.els, "download_els", _fake_pdf_download)
     monkeypatch.setattr(R, "_sleep", lambda *a, **k: None)
 
     out = tmp_path / "batch1"
@@ -42,8 +43,8 @@ def test_run_dedupes_and_writes_csv(tmp_path, monkeypatch):
     assert res["downloaded"] == 2
     rows = csv_rows(out / "metadata.csv")
     assert {r["doi"] for r in rows} == {"10.1016/a", "10.1016/b"}
-    assert all(r["source"] == "elsevier" and r["file_type"] == "MD" for r in rows)
-    assert all(r["file_path"].endswith(".md") for r in rows)
+    assert all(r["source"] == "elsevier" and r["file_type"] == "PDF" for r in rows)
+    assert all(r["file_path"].endswith(".pdf") for r in rows)
     assert (out / "search.md").exists()
 
 
@@ -56,7 +57,7 @@ def test_run_drops_sibling_journal(tmp_path, monkeypatch):
                  "year": "2024", "openaccess": False, "pii": "", "authors": ""}]
 
     monkeypatch.setattr(R.els, "search_journal", fake_search)
-    monkeypatch.setattr(R.els, "download_els", _fake_md_download)
+    monkeypatch.setattr(R.els, "download_els", _fake_pdf_download)
     monkeypatch.setattr(R, "_sleep", lambda *a, **k: None)
     out = tmp_path / "wd"
     params = {"qs": "x", "date_from": "2015", "num": 10, "per_journal": 25,
@@ -74,7 +75,7 @@ def test_run_clears_stale_artifacts(tmp_path, monkeypatch):
         return [{"doi": "10.1016/new", "title": "N", "journal": pub, "year": "2024",
                  "openaccess": False, "pii": "", "authors": ""}]
     monkeypatch.setattr(R.els, "search_journal", fake_search)
-    monkeypatch.setattr(R.els, "download_els", _fake_md_download)
+    monkeypatch.setattr(R.els, "download_els", _fake_pdf_download)
     monkeypatch.setattr(R, "_sleep", lambda *a, **k: None)
     out = tmp_path / "reuse"; papers = out / "papers"; papers.mkdir(parents=True)
     (papers / "10.1016_old.pdf").write_bytes(b"%PDF stale")
@@ -84,7 +85,9 @@ def test_run_clears_stale_artifacts(tmp_path, monkeypatch):
     R.run(params, session=object())
     names = {p.name for p in papers.glob("*")}
     assert "10.1016_old.pdf" not in names and "10.1016_old.md" not in names
-    assert "10.1016_new.md" in names
+    assert "10.1016_new.pdf" in names
+    assert "10.1016_new.xml" in names
+    assert "10.1016_new.md" not in names
 
 
 def test_norm_title_strips_country_suffix():
@@ -99,7 +102,7 @@ def test_run_respects_num_cap(tmp_path, monkeypatch):
                 for i in range(20)]
 
     monkeypatch.setattr(R.els, "search_journal", fake_search)
-    monkeypatch.setattr(R.els, "download_els", _fake_md_download)
+    monkeypatch.setattr(R.els, "download_els", _fake_pdf_download)
     monkeypatch.setattr(R, "_sleep", lambda *a, **k: None)
     out = tmp_path / "b2"
     params = {"qs": "x", "date_from": "2015", "num": 5, "per_journal": 25,
@@ -118,3 +121,41 @@ def test_round_robin_pick_interleaves():
     a = [{"doi": "a1"}, {"doi": "a2"}, {"doi": "a3"}]
     b = [{"doi": "b1"}, {"doi": "b2"}]
     assert [r["doi"] for r in R._round_robin_pick([a, b], 4)] == ["a1", "b1", "a2", "b2"]
+
+
+def test_partial_pdf_failure_preserves_xml_and_continues(tmp_path, monkeypatch):
+    def search(*args, **kwargs):
+        return [{"doi": f"10.1016/{name}", "title": name, "journal": "J"} for name in ("failed", "success")]
+    def download(session, doi, pdf, xml):
+        result = _fake_pdf_download(session, doi, pdf, xml)
+        if doi.endswith("failed"):
+            Path(pdf).unlink()
+            result.update(ok=False, pdf_ok=False, pdf_pages=None, error="pdf_http_403")
+        return result
+    monkeypatch.setattr(R.els, "search_journal", search)
+    monkeypatch.setattr(R.els, "download_els", download)
+    monkeypatch.setattr(R, "_sleep", lambda *a: None)
+    result = R.run({"out": str(tmp_path), "qs": "x", "num": 2, "journals": [{"name": "J"}]}, object())
+    assert result == {"ok": False, "found": 2, "downloaded": 1, "downloaded_xml": 2, "failed_downloads": 1}
+    failed, success = csv_rows(tmp_path / "metadata.csv")
+    assert failed["download_status"] == "xml_only" and failed["download_error"] == "pdf_http_403"
+    assert failed["file_path"] == "" and Path(failed["file_xml"]).exists()
+    assert success["download_status"] == "complete" and Path(success["file_path"]).exists()
+
+
+def test_empty_batch_is_not_success(tmp_path, monkeypatch):
+    monkeypatch.setattr(R.els, "search_journal", lambda *a, **k: [])
+    monkeypatch.setattr(R, "_sleep", lambda *a: None)
+    result = R.run({"out": str(tmp_path), "qs": "x", "journals": [{"name": "J"}]}, object())
+    assert result["ok"] is False and result["downloaded"] == 0
+
+
+def test_main_propagates_incomplete_batch_exit(monkeypatch, tmp_path):
+    import json
+    params = tmp_path / "params.json"
+    params.write_text(json.dumps({}), encoding="utf-8")
+    monkeypatch.setattr(R.sys, "argv", ["run_els_batch.py", str(params)])
+    monkeypatch.setattr(R, "get_api_key", lambda: "test-only")
+    monkeypatch.setattr(R.els, "make_session", lambda key: object())
+    monkeypatch.setattr(R, "run", lambda *a: {"ok": False, "found": 2, "downloaded": 1})
+    assert R.main() == 1

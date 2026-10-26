@@ -138,6 +138,7 @@ def test_persist_writes_on_verify_url_if_passed(tmp_path, monkeypatch):
         def cookies(self):
             return [{"name": "ok", "value": "1"}]
 
+    monkeypatch.setattr("captcha._has_pass_signal", lambda _p: True)
     assert login.persist_warm_cookies(Ctx(), page) is True
     assert "ok" in ck.read_text(encoding="utf-8")
 

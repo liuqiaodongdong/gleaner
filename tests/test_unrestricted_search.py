@@ -4,7 +4,7 @@ from unittest.mock import Mock
 
 import gleaner_cli
 import run_els_batch
-from acq.sources import els, openalex
+from acq.sources import els
 
 
 def test_unrestricted_els_request_omits_publisher():
@@ -28,17 +28,3 @@ def test_all_journals_keeps_property_journal(tmp_path, monkeypatch):
     result = run_els_batch.run({'qs': 'property', 'out': str(tmp_path),
         'all_journals': True, 'journals': [{'name': ''}]}, session=object())
     assert result['found'] == 1
-
-
-def test_openalex_all_disciplines_keeps_date_without_economics(monkeypatch):
-    captured = {}
-    def capture(params, num, mailto):
-        captured.update(params)
-        return []
-    monkeypatch.setattr(openalex, '_iter_works', capture)
-    openalex.search('real estate', econ_only=False, year_from='2022-01-01', mailto='test@example.org')
-    assert 'concepts.id' not in captured['filter']
-    assert 'from_publication_date:2022-01-01' in captured['filter']
-    parser = gleaner_cli.build_parser()
-    assert parser.parse_args(['intl', '--query', 'property', '--all-disciplines']).all_disciplines
-    assert parser.parse_args(['els', '--query', 'property', '--all-journals']).all_journals

@@ -5,15 +5,16 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from acq.network_config import proxy_status
+from acq.credential_checks import configured_value
 
 ROOT = Path(__file__).resolve().parent.parent
 COOKIES_FILE = ROOT / "cookies.json"
 ELS_KEY_FILE = ROOT / "acq" / "data" / ".elsevier_key"
-CARSI_STATE = ROOT / "acq" / "cookies" / "carsi" / "state.json"
 
 _LOGIN_FIRST = (
     "【Agent 自己执行，不要让用户拖滑块】"
-    "set ACQ_BROWSER_CHANNEL=msedge && set ACQ_ALLOW_COLD_LOGIN=1 && python login.py。"
+    "python login.py --first-run。"
     "脚本内超级鹰 9602 自动过滑块并写 cookies.json。不要只跑 login-hint，不要另调超级鹰 API。"
     "冷启动通常下不了全文，仅用于第一次建会话。"
 )
@@ -21,28 +22,6 @@ _LOGIN_WARM = (
     "续批次：不要设 ACQ_ALLOW_COLD_LOGIN，直接 python login.py（热启动）。"
     "超级鹰仍由 login.py 自动解。过验证立刻写入。"
 )
-
-
-def _proxy_detected() -> tuple[bool, str]:
-    """返回 (是否有代理, 说明)。"""
-    v = (os.environ.get("ACQ_PROXY") or "").strip()
-    if v:
-        return True, f"ACQ_PROXY={v}"
-    try:
-        import winreg
-        k = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER,
-            r"Software\Microsoft\Windows\CurrentVersion\Internet Settings",
-        )
-        enable, _ = winreg.QueryValueEx(k, "ProxyEnable")
-        if not enable:
-            return False, "系统代理未开启，且未设 ACQ_PROXY"
-        server, _ = winreg.QueryValueEx(k, "ProxyServer")
-        if not server:
-            return False, "系统代理开关开着但 ProxyServer 为空"
-        return True, f"Windows 系统代理: {server}"
-    except Exception:
-        return False, "未检测到 ACQ_PROXY / 系统代理（非 Windows 或读注册表失败）"
 
 
 def _cnki_cookies() -> dict:
@@ -83,7 +62,9 @@ def _chaojiying() -> dict:
     user = (os.environ.get("CJY_USER") or "").strip()
     pwd = (os.environ.get("CJY_PASS") or "").strip()
     soft = (os.environ.get("CJY_SOFTID") or "").strip()
-    missing = [k for k, v in [("CJY_USER", user), ("CJY_PASS", pwd), ("CJY_SOFTID", soft)] if not v]
+    missing = [k for k, v in [("CJY_USER", user), ("CJY_PASS", pwd), ("CJY_SOFTID", soft)] if not configured_value(v)]
+    if soft and (not soft.isdigit() or int(soft) <= 0) and "CJY_SOFTID" not in missing:
+        missing.append("CJY_SOFTID")
     if missing:
         return {
             "ok": False,
@@ -140,14 +121,14 @@ def _elsevier() -> dict:
     file_ok = False
     if ELS_KEY_FILE.exists():
         try:
-            file_ok = bool(ELS_KEY_FILE.read_text(encoding="utf-8").strip())
+            file_ok = configured_value(ELS_KEY_FILE.read_text(encoding="utf-8").strip())
         except Exception:
             file_ok = False
-    if env or file_ok:
+    if configured_value(env) or file_ok:
         return {
             "ok": True,
             "status": "configured",
-            "via": "env" if env else "file",
+            "via": "env" if configured_value(env) else "file",
             "hint": "Elsevier API key 已配置（不回显密钥内容）",
             "guide": str(ROOT / "docs" / "ELSEVIER_API.md"),
         }
@@ -170,25 +151,10 @@ def _elsevier() -> dict:
     }
 
 
-def _carsi() -> dict:
-    if CARSI_STATE.exists() and CARSI_STATE.stat().st_size > 10:
-        return {
-            "ok": True,
-            "status": "present",
-            "path": str(CARSI_STATE),
-            "hint": "CARSI cookie 状态文件存在（intl --sources 含 carsi 时可用）",
-        }
-    return {
-        "ok": False,
-        "status": "missing",
-            "required_for": "intl --sources 含 carsi 时需要",
-        "hint": "可选。默认 OA/NBER/Sci-Hub 不需要。若要用机构库 CARSI，需在本机完成浏览器 SSO 登录并保存 acq/cookies/carsi/state.json",
-    }
-
-
 def check_setup() -> dict:
     """检查本机部署就绪状态。返回可 JSON 序列化的结构（不含密钥明文）。"""
-    proxy_ok, proxy_detail = _proxy_detected()
+    proxy = proxy_status()
+    proxy_ok = proxy["ok"]
     cnki_ck = _cnki_cookies()
     cjy = _chaojiying()
     els = _elsevier()
@@ -204,11 +170,11 @@ def check_setup() -> dict:
             "cnki_list_ready": cnki_list_ready,
             "cookies": cnki_ck,
             "chaojiying": cjy,
-            "proxy": {"ok": proxy_ok, "detail": proxy_detail},
+            "proxy": proxy,
             "tools": ["cnki", "cnki-list"],
             "cnki_ready": cnki_collect_ready,
             "agent_note": (
-                "CNKI（cnki / cnki-list）：代理 + cookies.json 为硬门槛；全文另需超级鹰。"
+                "CNKI（cnki / cnki-list）：默认直连；代理可选。需要 cookies.json；全文另需超级鹰。"
                 "无 cookie 禁止开浏览器采集，避免冷启动空烧超级鹰。"
                 "首次：ACQ_ALLOW_COLD_LOGIN=1 后 python login.py；之后热启动、不要冷启动。"
             ),
@@ -234,8 +200,8 @@ def check_setup() -> dict:
         blockers.append({
             "id": "proxy",
             "severity": "cnki",
-            "title": "配置可访问知网机构库的代理或校园网",
-            "action": "设置 ACQ_PROXY=http://host:port，或开启 Windows 系统代理（与浏览器一致）",
+            "title": "修正显式配置的 ACQ_PROXY",
+            "action": proxy["detail"],
         })
     if not cookies_ok:
         blockers.append({
@@ -308,14 +274,8 @@ def check_setup() -> dict:
 def preflight(line: str) -> dict | None:
     """采集前检查。ready 则返回 None；否则返回应直接给用户/agent 的 dict。"""
     line = (line or "").lower().strip()
-    if line in ("intl", "intl_collect", "international"):
-        return {
-            "ok": False,
-            "error": "line_disabled",
-            "line": "intl",
-            "message": "国际线已停用；Gleaner 仅保留 CNKI 与 Elsevier 采集线。",
-            "available_lines": ["cnki", "elsevier"],
-        }
+    if line not in {"cnki", "cnki_collect", "cnki-list", "cnki_list", "els", "elsevier", "els_collect"}:
+        return {"ok": False, "error": "unknown_line", "line": line}
     s = check_setup()
     if line in ("cnki", "cnki_collect"):
         L = s["lines"]["cnki"]
@@ -324,7 +284,7 @@ def preflight(line: str) -> dict | None:
         return {
             "error": "setup_incomplete",
             "line": "cnki",
-            "message": "CNKI 全文线尚未就绪：需要超级鹰 + 机构代理 + cookies.json（先 login，勿冷启动空烧超级鹰）。",
+            "message": "CNKI 全文线尚未就绪：需要有效的超级鹰配置和 cookies.json；默认直连，代理可选（先 login，勿冷启动空烧超级鹰）。",
             "setup": {
                 "chaojiying": L["chaojiying"],
                 "proxy": L["proxy"],
@@ -340,10 +300,10 @@ def preflight(line: str) -> dict | None:
         return {
             "error": "setup_incomplete",
             "line": "cnki-list",
-            "message": "CNKI 题录线尚未就绪：需要机构代理 + cookies.json（先 login，勿冷启动空烧超级鹰）。",
+            "message": "CNKI 题录线尚未就绪：需要 cookies.json；默认直连，代理可选（先 login，勿冷启动空烧超级鹰）。",
             "setup": {"proxy": L["proxy"], "cookies": L["cookies"]},
             "next_steps_for_user": s["next_steps_for_user"],
-            "hint": "请先配置 ACQ_PROXY 或系统代理，再跑 python gleaner_cli.py status 确认。",
+            "hint": "请按缺失项建立登录会话；仅在主动配置代理且格式错误时修正或移除 ACQ_PROXY。",
         }
     if line in ("els", "elsevier", "els_collect"):
         L = s["lines"]["elsevier"]

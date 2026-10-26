@@ -12,9 +12,7 @@ def test_check_setup_shape(monkeypatch, tmp_path):
     # 避开本机真实 cookies/key 路径：临时改 ROOT 相关常量
     monkeypatch.setattr(setup_check, "COOKIES_FILE", tmp_path / "cookies.json")
     monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / ".elsevier_key")
-    monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "carsi_state.json")
     # 伪装无系统代理
-    monkeypatch.setattr(setup_check, "_proxy_detected", lambda: (False, "no proxy"))
 
     s = setup_check.check_setup()
     assert "next_steps_for_user" in s
@@ -56,7 +54,6 @@ def test_check_setup_ready_when_configured(monkeypatch, tmp_path):
     ck.write_text(json.dumps([{"name": "a", "value": "b", "domain": ".cnki.net"}]), encoding="utf-8")
     monkeypatch.setattr(setup_check, "COOKIES_FILE", ck)
     monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / "no_key")
-    monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "no_carsi")
 
     s = setup_check.check_setup()
     assert s["lines"]["cnki"]["cnki_collect_ready"] is True
@@ -75,8 +72,6 @@ def test_preflight_blocks_cnki_and_els(monkeypatch, tmp_path):
     monkeypatch.delenv("ACQ_PROXY", raising=False)
     monkeypatch.setattr(setup_check, "COOKIES_FILE", tmp_path / "cookies.json")
     monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / ".elsevier_key")
-    monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "x")
-    monkeypatch.setattr(setup_check, "_proxy_detected", lambda: (False, "no"))
 
     blocked = setup_check.preflight("cnki")
     assert blocked["error"] == "setup_incomplete"
@@ -95,7 +90,6 @@ def test_preflight_pass_when_ready(monkeypatch, tmp_path):
     ck.write_text(json.dumps([{"name": "a", "value": "b", "domain": ".cnki.net"}]), encoding="utf-8")
     monkeypatch.setattr(setup_check, "COOKIES_FILE", ck)
     monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / "k")
-    monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "x")
     assert setup_check.preflight("cnki_collect") is None
     assert setup_check.preflight("elsevier") is None
 
@@ -107,7 +101,6 @@ def test_cnki_not_ready_without_cookies(monkeypatch, tmp_path):
     monkeypatch.setenv("ACQ_PROXY", "http://127.0.0.1:9")
     monkeypatch.setattr(setup_check, "COOKIES_FILE", tmp_path / "missing.json")
     monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / "k")
-    monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "x")
     s = setup_check.check_setup()
     assert s["lines"]["cnki"]["cnki_collect_ready"] is False
     assert s["lines"]["cnki"]["cnki_list_ready"] is False
@@ -121,5 +114,4 @@ def test_intl_preflight_disabled_without_checking_credentials(monkeypatch):
         raise AssertionError("Disabled line must not inspect credentials")
     monkeypatch.setattr(setup_check, "check_setup", unexpected_setup)
     blocked = setup_check.preflight("intl")
-    assert blocked["error"] == "line_disabled"
-    assert blocked["available_lines"] == ["cnki", "elsevier"]
+    assert blocked["error"] == "unknown_line"

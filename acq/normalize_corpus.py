@@ -2,7 +2,7 @@
 import csv
 from pathlib import Path
 
-# 统一列，与 run_intl_batch.py 的 FIELDS 保持一致
+# 统一列；保留历史批次字段，便于读取既有文献记录
 FIELDS = ["source", "doi", "oa_status", "title", "authors", "journal",
           "year", "pdf_url", "url", "file_path", "file_type"]
 

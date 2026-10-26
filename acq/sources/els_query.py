@@ -18,7 +18,7 @@ import json
 import re
 from pathlib import Path
 
-_DEFAULT_TIERS = Path(__file__).resolve().parent.parent / "data" / "intl_journal_tiers.json"
+_DEFAULT_TIERS = Path(__file__).resolve().parent.parent / "data" / "elsevier_journal_tiers.json"
 QS_MAX = 250
 SHOW_ALLOWED = (10, 25, 50, 100)
 _CJK_RE = re.compile(r"[\u4e00-\u9fff]")

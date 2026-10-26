@@ -29,6 +29,12 @@ python "$env:GLEANER_ROOT\gleaner_cli.py" status
 pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 ```
 
+## 网络与首次验证
+
+默认直连，校园网和 VPN 系统路由仍生效。代理只是可选配置，不读取系统代理；PORT 占位符须替换为实际端口。无代理不得成为安装阻断项。
+
+新电脑先验证实际超级鹰配置和积分（`python gleaner_cli.py score`），再执行 `python login.py --first-run`。Agent 使用项目内脚本，不另行调用打码或重复拖动。失败退出码为非零；先解决具体报错，不把占位值、脚本结束或空 Cookie 视为成功。
+
 ## 首次 / 采集前：必须做部署引导
 
 1. **先跑** `python gleaner_cli.py status`（不要先假设用户已配好密钥）。
@@ -44,8 +50,8 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
 
 | 线 | CLI 子命令 | 硬门槛 | 推荐 |
 |---|---|---|---|
-| CNKI 全文 | `cnki` | 机构代理 + 超级鹰 + **`cookies.json`** | 首次 `ACQ_ALLOW_COLD_LOGIN=1` 录 cookie；之后热启动 |
-| CNKI 题录 | `cnki-list` | 机构代理 + **`cookies.json`** | 同上，无 cookie 不准开浏览器 |
+| CNKI 全文 | `cnki` | 超级鹰 + **`cookies.json`** | 首次 `ACQ_ALLOW_COLD_LOGIN=1` 录 cookie；之后热启动 |
+| CNKI 题录 | `cnki-list` | **`cookies.json`**（代理可选） | 同上，无 cookie 不准开浏览器 |
 | CNKI 完整题录 | `cnki-list --details` | 同 CNKI 题录 | 详情页补充摘要、关键词、机构、基金；11 列 CSV，无全文下载 |
 | CNKI 分级建式 | `prepare` | 无（纯本地、不启浏览器） | Agent 先做关键词拓展 |
 | Elsevier | `els` | **官方** `ELSEVIER_API_KEY` 或 `acq/data/.elsevier_key` | 见下方官方申请流程 |
@@ -117,7 +123,7 @@ pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
   `python gleaner_cli.py els --query "\"supply chain\" AND \"green transition\"" --num 15`
   组式：`--concept-groups '[{"name":"sc","keywords":["supply chain"]},{"name":"gt","keywords":["green transition"]}]'`
   官方规则见 `docs/ELSEVIER_API.md`。高召回才 `--scope qs`。
-- 仅启用 CNKI 与 Elsevier；国际线已停用，不调用国际发现/下载渠道，不自动回退到国际线。
+- 普通版仅提供 CNKI 与 Elsevier；国际线的入口和专用模块已移除。机构版技能名为 gleanera，独立安装。
 - 长任务用终端跑 CLI，**不要假设** 30 分钟内返回。
 
 ## 出错时

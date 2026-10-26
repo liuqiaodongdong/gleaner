@@ -1,6 +1,7 @@
 # acq/els_config.py —— Elsevier API key 读取（机密，不进 git，不打印）
 import os
 from pathlib import Path
+from acq.credential_checks import configured_value
 
 _KEY_FILE = Path(__file__).resolve().parent / "data" / ".elsevier_key"
 
@@ -8,11 +9,11 @@ _KEY_FILE = Path(__file__).resolve().parent / "data" / ".elsevier_key"
 def get_api_key() -> str:
     """env ELSEVIER_API_KEY 优先；否则读 acq/data/.elsevier_key；都没有抛错。"""
     k = os.environ.get("ELSEVIER_API_KEY")
-    if k and k.strip():
+    if configured_value(k):
         return k.strip()
     if _KEY_FILE.exists():
         v = _KEY_FILE.read_text(encoding="utf-8").strip()
-        if v:
+        if configured_value(v):
             return v
     raise RuntimeError(
         "Elsevier API key 缺失：请申请官方 Key（https://dev.elsevier.com/apikey/manage），"

@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-TIERS = Path(__file__).parent.parent / "acq" / "data" / "intl_journal_tiers.json"
+TIERS = Path(__file__).parent.parent / "acq" / "data" / "elsevier_journal_tiers.json"
 
 
 def test_tier_file_shape():

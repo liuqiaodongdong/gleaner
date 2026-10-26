@@ -1,11 +1,11 @@
-# build_intl_tiers.py —— 从《总体期刊目录.xlsx》+ Elsevier Serial Title API 重建国际白名单 tier 文件
+# build_elsevier_tiers.py —— 从《总体期刊目录.xlsx》+ Elsevier Serial Title API 重建国际白名单 tier 文件
 import json, os, time, re, sys
 from pathlib import Path
 import pandas as pd
 import requests
 from acq.els_config import get_api_key
 
-OUT = Path(__file__).parent / "acq" / "data" / "intl_journal_tiers.json"
+OUT = Path(__file__).parent / "acq" / "data" / "elsevier_journal_tiers.json"
 
 
 def _xlsx_path(cli_path: str | None = None) -> str:

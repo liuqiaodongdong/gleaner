@@ -93,6 +93,8 @@ def launch_browser():
 
     If cookies.json exists, load it to skip CAPTCHA verification.
     """
+    from acq.network_config import proxy_server
+    _proxy = proxy_server()
     pw = sync_playwright().start()
     import os
     # 无头/浏览器内核可由环境变量切换：CLI 采集默认 ACQ_HEADLESS=1 + 系统 Edge
@@ -109,6 +111,8 @@ def launch_browser():
             "--start-maximized",
         ],
     )
+    if not _proxy:
+        _launch["args"].append("--no-proxy-server")
     if _channel:
         _launch["channel"] = _channel
     browser = pw.chromium.launch(**_launch)
@@ -117,9 +121,7 @@ def launch_browser():
         user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36",
         accept_downloads=True,
     )
-    # 代理：知网机构权限（Playwright 默认不吃系统代理，需显式传）。
-    # ACQ_PROXY 示例 http://127.0.0.1:PORT（端口以本机代理软件为准）；不设则直连。
-    _proxy = os.environ.get("ACQ_PROXY", "")
+    # 代理仅在 ACQ_PROXY 明确配置时启用。
     if _proxy:
         _ctx_kwargs["proxy"] = {"server": _proxy}
     context = browser.new_context(**_ctx_kwargs)

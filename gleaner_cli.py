@@ -101,25 +101,10 @@ def cmd_status(_root: Path) -> int:
 
 
 def cmd_sources(root: Path) -> int:
-    """列出各源状态；guard 读 root/acq/guard_state/。"""
+    """列出当前保留的采集源和配置状态。"""
     from acq.setup_check import check_setup
 
     setup = check_setup()
-
-    def _guard_info(name: str) -> dict:
-        try:
-            state_file = root / "acq" / "guard_state" / f"guard_{name}.json"
-            if state_file.exists():
-                s = json.loads(state_file.read_text(encoding="utf-8"))
-                return {
-                    "today_used": s.get("count", 0),
-                    "tripped": s.get("tripped", False),
-                    "day": s.get("day", ""),
-                    "fail_count": s.get("fail_count", 0),
-                }
-            return {"status": "no_state_yet"}
-        except Exception:
-            return {"status": "unknown"}
 
     L = setup["lines"]
     payload = {
@@ -131,7 +116,7 @@ def cmd_sources(root: Path) -> int:
                 "type": "paper",
                 "status": "ready" if L["cnki"]["cnki_collect_ready"] else "needs_setup",
                 "modes": ["keyword", "pro", "tiered L1-L4 (prepare→LY刊滤)"],
-                "access": "主力机本地经代理(机构权限)",
+                "access": "默认直连；代理可选，全文依赖有效机构权限",
                 "tool": "cnki / cnki-list / prepare",
                 "ready": L["cnki"]["cnki_collect_ready"],
                 "note": (
@@ -148,7 +133,7 @@ def cmd_sources(root: Path) -> int:
                 "tool": "els",
                 "ready": L["elsevier"]["ready"],
                 "note": (
-                    "白名单 acq/data/intl_journal_tiers.json；"
+                    "白名单 acq/data/elsevier_journal_tiers.json；"
                     "首次请 python gleaner_cli.py status"
                 ),
             },
@@ -161,8 +146,13 @@ def cmd_sources(root: Path) -> int:
 def cmd_score(_root: Path) -> int:
     from captcha import chaojiying_score
 
-    print(chaojiying_score())
-    return 0
+    result = chaojiying_score()
+    print(result)
+    try:
+        payload = json.loads(result)
+        return 0 if isinstance(payload, dict) and payload.get("err_no") == 0 else 1
+    except (ValueError, TypeError):
+        return 1
 
 
 def cmd_login_hint(_root: Path) -> int:
@@ -181,12 +171,12 @@ def cmd_login_hint(_root: Path) -> int:
    批次间重录（已有 cookies.json，禁止冷启动）：
      python login.py
    仅首次没有 cookie：
-     set ACQ_ALLOW_COLD_LOGIN=1
-     python login.py
+     python login.py --first-run
+   兼容旧方式：ACQ_ALLOW_COLD_LOGIN=1。该冷启动开关只用于首次建会话。
    冷启动通常下不了全文，不要用它续批次。
-4. 需已配置 CJY_*。看得见拼图才打码；过验证立刻写 cookies.json 并退出。
+4. 首次先跑 python gleaner_cli.py score 验证账号与积分；模板占位值不算有效配置。需已配置 CJY_*。看得见拼图才打码；过验证立刻写 cookies.json 并退出。
    URL 仍带 /verify 也算过了。无面板绝不整页送超级鹰。
-   无需个人账号。只有超级鹰未配置或多次失败时，才允许用户手拖，拖完脚本仍会写盘。
+   登录失败返回非零状态，先修正报错再重试。仅用户明确选择人工验证时设置 ACQ_MANUAL_CAPTCHA=1。
 5. cookie 为短会话：换网络、换代理或过期后请重跑 login.py（仍加载旧 cookie）。
    全文必须 --until <目标> 串行多批直到采够（每批 40–60 随机，批间自动 login.py）。
    不要只跑一批交差，不要一次 --num 拉满，不要并行、不要每批都写死 50。
@@ -194,7 +184,7 @@ def cmd_login_hint(_root: Path) -> int:
      python gleaner_cli.py status
    查看 cookies 是否就绪。
 
-说明：CNKI 采集硬门槛为机构代理 + cookies.json；全文另需超级鹰。
+说明：CNKI 默认直连，ACQ_PROXY 可选；采集需要 cookies.json，全文另需超级鹰。
 无 cookie 禁止先采（会空烧超级鹰）。勿把 cookies.json / 密钥提交到 git。
 """
     print(text)
@@ -450,11 +440,6 @@ def cmd_cnki(root: Path, args: argparse.Namespace) -> int:
     )
 
 
-# OpenAlex polite pool mailto
-_INTL_DEFAULT_EMAIL = "Libby_Stantoncsc@writeme.com"
-_INTL_DEFAULT_SOURCES = ["oa", "nber", "scihub"]
-
-
 def cmd_els(root: Path, args: argparse.Namespace) -> int:
     """Elsevier：preflight → 选刊 → run_els_batch.py → 完整 PDF + XML 摘要。"""
     from acq.setup_check import preflight
@@ -566,89 +551,6 @@ def cmd_els(root: Path, args: argparse.Namespace) -> int:
     return 0 if ok else 1
 
 
-def _parse_intl_sources(raw: str | None) -> list[str]:
-    """--sources 逗号分隔或 JSON 数组；空则用默认渠道。"""
-    if raw is None or not str(raw).strip():
-        return list(_INTL_DEFAULT_SOURCES)
-    text = str(raw).strip()
-    if text.startswith("["):
-        try:
-            parsed = json.loads(text)
-            if isinstance(parsed, list):
-                return [str(s).strip() for s in parsed if str(s).strip()]
-        except Exception:
-            pass
-    return [s.strip() for s in text.split(",") if s.strip()]
-
-
-def cmd_intl(root: Path, args: argparse.Namespace) -> int:
-    """国际：写 params（字段同 intl_collect）→ run_intl_batch.py → 摘要 *.pdf。"""
-    from acq.setup_check import preflight
-
-    blocked = preflight("intl")
-    if blocked:
-        _print_json(blocked)
-        return 1
-    query = (args.query or "").strip()
-    if not query:
-        _print_json({"ok": False, "error": "intl 需要 --query"})
-        return 1
-
-    num = int(args.num)
-    sources = _parse_intl_sources(getattr(args, "sources", None))
-    year_from = (getattr(args, "year_from", None) or "").strip()
-    issn = (getattr(args, "issn", None) or "").strip()
-    out_name = (getattr(args, "out_name", None) or "").strip()
-    email = (getattr(args, "email", None) or "").strip() or _INTL_DEFAULT_EMAIL
-
-    batch = out_name or ("intl_" + re.sub(r"\W+", "_", query)[:20]).strip("_")
-    corpus = root / "corpus"
-    corpus.mkdir(parents=True, exist_ok=True)
-    out_dir = corpus / batch
-
-    params: dict[str, Any] = {
-        "query": query,
-        "num": num,
-        "out": str(out_dir),
-        "sources": sources,
-        "email": email,
-        "econ_only": not bool(getattr(args, "all_disciplines", False)),
-    }
-    if year_from:
-        params["year_from"] = year_from
-    if issn:
-        params["issn"] = issn
-
-    pfile = corpus / "_cli_intl_params.json"
-    pfile.write_text(json.dumps(params, ensure_ascii=False), encoding="utf-8")
-
-    log_path = corpus / f"{batch}_run.log"
-    cmd = [sys.executable, str(root / "run_intl_batch.py"), str(pfile)]
-    exit_code = run_logged(
-        cmd,
-        cwd=root,
-        log_path=log_path,
-        timeout=getattr(args, "timeout", None),
-    )
-
-    summary = summarize_batch(out_dir, file_glob="*.pdf")
-    result: dict[str, Any] = {
-        "ok": exit_code == 0,
-        "exit_code": exit_code,
-        "command": "intl",
-        "query": query,
-        "sources": sources,
-        "log_path": str(log_path),
-        "params_file": str(pfile),
-        "merged_metadata": (
-            _try_merge_corpus(root) if exit_code == 0 else None
-        ),
-        **summary,
-    }
-    _print_json(result)
-    return 0 if exit_code == 0 else 1
-
-
 def _add_cnki_args(
     p: argparse.ArgumentParser, *, default_num: int, fulltext: bool = False
 ) -> None:
@@ -721,7 +623,7 @@ def build_parser() -> argparse.ArgumentParser:
         help="把 skill/gleaner 注册到 ~/.grok、~/.cursor、~/.codex",
     )
     sub.add_parser("status", parents=[common], help="部署就绪检查")
-    sub.add_parser("sources", parents=[common], help="列出论文源与 guard 状态")
+    sub.add_parser("sources", parents=[common], help="列出论文源与配置状态")
     sub.add_parser("score", parents=[common], help="查询超级鹰积分")
     sub.add_parser("login-hint", parents=[common], help="打印 CNKI 有头登录步骤")
 
@@ -807,28 +709,6 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p_els.add_argument("--out-name", default="", dest="out_name", help="corpus 下批次目录名")
 
-    p_intl = sub.add_parser(
-        "intl", parents=[common], description="国际线已停用，请使用 cnki 或 els。"
-    )
-    p_intl.add_argument("--query", required=True, help="英文关键词或短语")
-    p_intl.add_argument("--num", type=int, default=25, help="目标篇数（默认 25）")
-    p_intl.add_argument("--all-disciplines", action="store_true", help="取消默认经济学学科过滤")
-    p_intl.add_argument(
-        "--sources",
-        default="",
-        help='下载渠道，逗号分隔（默认 oa,nber,scihub；可加 carsi）',
-    )
-    p_intl.add_argument(
-        "--year-from", default="", dest="year_from", help="年份下限（如 2020）"
-    )
-    p_intl.add_argument("--issn", default="", help="期刊 ISSN 过滤")
-    p_intl.add_argument("--out-name", default="", dest="out_name", help="corpus 下批次目录名")
-    p_intl.add_argument(
-        "--email",
-        default="",
-        help=f"OpenAlex mailto（默认 {_INTL_DEFAULT_EMAIL}）",
-    )
-
     return parser
 
 
@@ -863,8 +743,6 @@ def main(argv: list[str] | None = None) -> int:
         return cmd_cnki(root, args)
     if cmd == "els":
         return cmd_els(root, args)
-    if cmd == "intl":
-        return cmd_intl(root, args)
 
     print(f"未知子命令: {cmd}", file=sys.stderr)
     return 2

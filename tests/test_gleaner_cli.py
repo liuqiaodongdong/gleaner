@@ -103,21 +103,14 @@ def test_prepare_concept_groups_from_at_file(tmp_path, monkeypatch):
     assert m.call_args.kwargs["concept_groups"] == gpath.read_text(encoding="utf-8")
 
 
-def test_sources_reads_guard_state(tmp_path, monkeypatch, capsys):
+def test_sources_lists_supported_lines(tmp_path, monkeypatch, capsys):
     monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
-    gdir = tmp_path / "acq" / "guard_state"
-    gdir.mkdir(parents=True)
-    (gdir / "guard_oa.json").write_text(
-        json.dumps({"count": 3, "tripped": False, "day": "2026-08-10", "fail_count": 0}),
-        encoding="utf-8",
-    )
     fake_setup = {
         "ok": True,
         "next_steps_for_user": [],
         "lines": {
             "cnki": {"cnki_collect_ready": False},
             "elsevier": {"ready": False},
-            "intl": {"carsi_optional": {"ok": False}},
         },
     }
     with patch("acq.setup_check.check_setup", return_value=fake_setup):
@@ -539,15 +532,6 @@ def test_els_strips_tak_wrapper(tmp_path, monkeypatch):
     assert params["scope"] == "title"
 
 
-@pytest.mark.parametrize("extra", [[], ["--sources", "oa,scihub", "--year-from", "2020", "--issn", "1234-5678"]])
-def test_intl_disabled_before_subprocess_or_output(tmp_path, monkeypatch, capsys, extra):
-    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path))
-    with patch("gleaner_cli.run_logged") as run:
-        code = gleaner_cli.main(["intl", "--root", str(tmp_path), "--query", "innovation", *extra])
-    assert code == 1
-    assert json.loads(capsys.readouterr().out)["error"] == "line_disabled"
-    run.assert_not_called()
-    assert not (tmp_path / "corpus").exists()
 
 
 def test_help_only_advertises_active_lines(capsys):
@@ -854,3 +838,8 @@ def test_cnki_list_details_rejects_fulltext_batch(tmp_path, monkeypatch, capsys)
     run.assert_not_called()
     assert "out-name" in json.loads(capsys.readouterr().out)["error"]
     assert path.read_bytes() == before
+
+def test_removed_intl_command_rejected():
+    with pytest.raises(SystemExit) as exc:
+        gleaner_cli.build_parser().parse_args(["intl", "--query", "x"])
+    assert exc.value.code == 2

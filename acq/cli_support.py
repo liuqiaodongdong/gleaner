@@ -101,8 +101,8 @@ def install_user_skill(root: Path, home: Path | None = None) -> dict:
         "next_steps_for_agent": [
             f"当前会话设置 GLEANER_ROOT={root}",
             "python gleaner_cli.py status",
-            "按 status.blockers 写 .env（CJY_* / ACQ_PROXY / ELSEVIER_API_KEY），不要回显密钥",
-            "知网无 cookies.json：仅首次 ACQ_ALLOW_COLD_LOGIN=1 后 python login.py",
+            "按 status.blockers 配置 CJY_* / ELSEVIER_API_KEY；网络默认直连，ACQ_PROXY 可选；不要回显密钥",
+            "知网无 cookies.json：首次运行 python login.py --first-run",
         ],
     }
 

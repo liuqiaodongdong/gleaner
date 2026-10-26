@@ -1,136 +1,64 @@
 ---
 name: gleaner
 description: >
-  学术文献采集（知网 CNKI / Elsevier）。
-  用户说「安装 skill / 注册 skill / 装 gleaner」时：必须先 git clone
-  https://github.com/liuqiaodongdong/gleaner.git ，再 pip 与
-  python gleaner_cli.py install-skill。只把 SKILL.md 拷到 ~/.cursor/skills 不算安装。
-  无 cookies.json 时 Agent 必须自己跑 python login.py（脚本内超级鹰自动过滑块）。
-  Use when: /gleaner、下知网、采文献、cnki、elsevier、国际论文、gleaner 采集、
-  安装 gleaner、安装 skill、安装这个 skill、注册 skill、clone gleaner、
-  录 cookie、登录知网、login.py、超级鹰、cookies.json。
+  普通版学术文献采集（CNKI / Elsevier）。默认直连、代理可选。
+  安装时先克隆仓库、安装依赖，再执行 gleaner_cli.py install-skill。
+  知网首次验证运行 python login.py --first-run，超级鹰由项目脚本调用。
+  校外学校机构入口登录请使用独立技能 gleanera。
 ---
 
-# Gleaner（Skill + CLI）
+# Gleaner 普通版
 
-用本机仓库统一 CLI 仅走 CNKI、Elsevier 两条采集线。国际线已停用，不调用 OpenAlex、OA、NBER、Sci-Hub 或 CARSI，也不在两条保留线路失败时自动转用国际线。
+仓库：https://github.com/liuqiaodongdong/gleaner.git，分支 `main`。只提供 CNKI 与 Elsevier 两条线路。
 
-## 安装 skill = 先下载项目（禁止只拷 SKILL.md）
+## 安装与更新
 
-用户说「安装 skill / 注册 skill / 装 gleaner」时，**第一条命令必须是 clone 仓库**。
-没有 `gleaner_cli.py` 就还没装完。只拷本文件到 `~/.cursor/skills/gleaner` **无效**。
+新安装先克隆完整仓库，不能只复制 SKILL.md。已有仓库先检查 Git 状态，再更新 `main`。
 
 ```powershell
-# 用户指定了目录就用那个；否则当前工作区下的 gleaner\
 git clone https://github.com/liuqiaodongdong/gleaner.git <dest>
 cd <dest>
 python -m pip install -r requirements.txt
 python gleaner_cli.py install-skill
-$env:GLEANER_ROOT = (Resolve-Path .).Path
 python gleaner_cli.py status
 ```
 
-本机已有仓库：在仓库根跑 `python gleaner_cli.py install-skill`。  
-Skill 目录里已有脚本时：`python scripts/bootstrap.py`（没有仓库会自己 clone）。
+需要 Python 3.11+；Windows 建议系统 Edge。技能注册到各客户端的 `skills/gleaner`，`.gleaner_root` 指向本仓库，与 `gleanera` 独立。根目录优先使用 CLI `--root`，其次 `GLEANER_ROOT`；包装脚本可读取技能指针。
 
-然后才能录 cookie、再采集。
+## 网络与首次验证
 
-## 录 cookie（Agent 自己做，不要问用户拖滑块）
+- 默认直连，校园网或 VPN 的系统路由仍生效；无需代理软件或端口。`ACQ_PROXY` 仅在用户确实需要代理时配置，不自动读取系统代理。不能把 `PORT` 占位符填入有效配置。
+- `status` 检查本地配置，不能据此宣称机构权限或远端账号已验证。
+- 首次填写实际 `CJY_USER`、`CJY_PASS`、`CJY_SOFTID`，运行 `python gleaner_cli.py score` 验证账号和积分。占位值不算已配置；报错先修正，不能直接开始验证码调用。
+- 无 `cookies.json` 时，由 Agent 运行 `python login.py --first-run`。以后运行 `python login.py` 复用已有会话。Windows 自动选择 Edge；其它平台须安装 Playwright 浏览器或指定 `ACQ_BROWSER_CHANNEL`。
+- 登录脚本内部完成超级鹰调用与平稳拖动，Agent 不另调打码接口，也不重复操纵同一个验证页面。自动最多两次；失败返回非零退出码，报告实际原因，不把退出或创建文件视为成功。
+- 默认不切换为人工等待。只有用户明确选择人工验证，才临时设置 `ACQ_MANUAL_CAPTCHA=1`，人工等待最多 90 秒。
+- 确认登录输出 `ok=true` 并保存非空会话后，再运行 `status`。未就绪时不能启动采集；机构权限仍由实际访问结果验证。
 
-`status` 里 `cookies.ok=false` 或用户说「登录 / 录 cookie」时：
+## 采集
 
-1. 先确认 `.env` 有 `CJY_USER` / `CJY_PASS` / `CJY_SOFTID`（没有则协助写好，再 `status`）。
-2. **Agent 自己启动**（不要只跑 `login-hint`，不要让用户手拖或从 DevTools 复制）：
-   - 首次无文件：`$env:ACQ_BROWSER_CHANNEL='msedge'; $env:ACQ_ALLOW_COLD_LOGIN='1'; python login.py`
-   - 已有文件（批间重录）：只设 `ACQ_BROWSER_CHANNEL=msedge`，再 `python login.py`
-3. `login.py` **内部**用超级鹰 9602 过滑块并立刻写 `cookies.json`。Agent **不要**另调超级鹰 API、不要用浏览器工具抠 cookie。
-4. 终端出现 `已更新会话` 后重跑 `status`，再采。无个人知网账号。
+先 `status`，根据需要选择线路，不自动转用其它来源。
 
-官方仓库：https://github.com/liuqiaodongdong/gleaner.git  
-需要 **Python 3.11+**。知网线建议 Windows + 系统 Edge。
-
-clone + `install-skill` 之后设 `GLEANER_ROOT`，再 `status`。线未 ready → 配 `.env`；无 cookie → Agent 自己跑 `login.py`。**不要**未就绪就硬采。
+### CNKI 完整题录
 
 ```powershell
-$env:GLEANER_ROOT = "<本仓库绝对路径>"
-python "$env:GLEANER_ROOT\gleaner_cli.py" status
-pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
+python gleaner_cli.py cnki-list --details --query "数字经济" --num 50 --out-name demo_metadata
 ```
 
-子命令：`install-skill` | `status` | `sources` | `score` | `login-hint` | `prepare` | `cnki-list` | `cnki` | `els`
+输出标题、作者、摘要、关键词、期刊、日期、机构、基金、被引次数、下载次数、URL 共 11 列。仅访问列表和详情，不下载全文、不创建 papers；使用 `--num`，不用 `--until`。不要与全文批次复用输出目录。省略 `--details` 为列表页 7 列。
 
-## 默认根目录
+### CNKI 全文
 
-优先级：`GLEANER_ROOT` → CLI `--root` → Skill 目录 `.gleaner_root`（包装脚本）→ 仓库内 `gleaner_cli.py` 所在目录。详见 [references/env.md](references/env.md)。
+由 Agent 拓展概念组，`prepare` 生成 L1–L4 检索式；先 `cnki-list` 看命中数，再 `cnki`。L1 不够可升 L2；L3/L4 经用户明确同意后使用。
 
-## 铁律
+目标篇数为用户指定或列表 TOTAL。使用同一 `--out-name` 和 `--until <目标>` 串行多批，每批 40–60 篇随机；不要一次拉满、不要并行浏览器。普通版批间可自动热启动登录脚本，失败即停止。只有 `until_reached` 和实际文件数满足目标才报告采够。
 
-1. **先 status**：任何采集前必须先跑  
-   `python "$env:GLEANER_ROOT\gleaner_cli.py" status`  
-   看 `lines.*.ready` / `blockers` / `next_steps_for_user`。线未 ready → 引导配置，**禁止硬采**。
+### Elsevier
 
-2. **知网先录 cookie**：`status` 里 `cookies.ok=false` 时 **禁止** 跑 `cnki` / `cnki-list`。Agent **必须自己启动** `python login.py`（超级鹰在脚本里自动过滑块并写盘）。**禁止**：只打印 `login-hint` 就停、让用户手拖滑块、让用户从浏览器复制 cookie、用浏览器工具抠 cookie、另外调用超级鹰接口。仅第一次没有文件才加 `ACQ_ALLOW_COLD_LOGIN=1`。冷启动采集下不了全文，只会空烧超级鹰。
+只使用官方 Developer API，Key 来自 https://dev.elsevier.com/apikey/manage 。支持英文布尔式、概念组及期刊分级。默认保存完整 PDF＋XML；PDF 通过正文对象接口下载并验证身份及可用页数。PDF 失败时保留 XML 并报告原因，不能计为完整下载。
 
-3. **知网全文必须串行多批直到采够**：`cnki-list` 看到 TOTAL 后，**禁止**一次 `--num` 拉满，也**禁止只跑一批就汇报完成**。目标篇数 = 用户指定或 TOTAL。必须带同一 `--out-name` 和 `--until <目标>`（省略 `--until` 时 CLI **只跑一批**，不会替你循环）。看摘要里的 `until_reached` / `downloaded_files`，没采够不要当完成。批间 CLI 自动热启动 `login.py`。**禁止**并行开两个知网浏览器。不要申请「交互终端」；后台跑 CLI，进度看 `corpus/*_run.log`。
+## 运行与汇报
 
-4. **长任务走 shell CLI**：`cnki-list` / `cnki` / `els` 可能超过 30 分钟。用终端执行 CLI，**不要假设**会在固定超时内返回。过程与结果看 `corpus/*_run.log` 与结束时的摘要 JSON。
+长任务用终端 CLI，不擅自增加固定超时；查看 `corpus/*_run.log`。汇报 `local_dir`、`metadata_rows`、实际 PDF/CAJ 或 XML 数量、主要标题和日志。零下载和部分失败如实报告。
 
-5. **Cookie 失效**：CNKI 下载/列表报登录、验证码反复失败、或疑似会话过期时：  
-   - `python gleaner_cli.py login-hint`  
-   - 已有 `cookies.json`：在 `GLEANER_ROOT` 下 `set ACQ_BROWSER_CHANNEL=msedge` 后 `python login.py`（热启动，禁止冷启动）  
-   - 仅第一次没有 cookie：再加 `set ACQ_ALLOW_COLD_LOGIN=1`  
-   完成后重跑 `status` 再采。无需个人知网账号。
-
-6. **完成后汇报**：`local_dir` 路径、`metadata_rows` / `downloaded_files` 篇数、主要标题、`log_path`。0 篇也要报，并建议是否升 level / 放宽 query。
-
-7. **细节文档**：环境与密钥见 [references/env.md](references/env.md)；标准流程见 [references/workflows.md](references/workflows.md)。
-
-8. **禁止回显密钥**：不要打印 `CJY_*`、`ELSEVIER_API_KEY`、完整 cookies 或 `.elsevier_key` 内容。
-
-## CNKI 推荐流程（分级）
-
-### 仅完整题录（不下载全文）
-
-用户要求“只采集题录/摘要/关键词，不下载 PDF”时，用 `cnki-list --details`：
-
-```powershell
-python gleaner_cli.py status
-python gleaner_cli.py cnki-list --details --query "数字经济" --num 50 --out-name demo_cnki_metadata
-```
-
-同样支持 `--pro`、`--level` / `--search-md`。逐篇访问详情页，输出
-`title,authors,abstract,keywords,journal,pub_date,institution,fund,cite_count,download_count,url`
-这 11 列到 `corpus/<批次>/metadata.csv`，不调用下载器、不创建 `papers/`。
-此模式使用 `--num`，不使用全文专用的 `--until`，完成后停止，不继续运行 `cnki` 或转换。
-页面没有的字段留空；详情加载失败会报错，已采题录逐篇保存。重跑同名批次会重新采集并按题名更新。
-省略批次名时自动加 `_metadata`；显式指定时选题录专用批次，避免与已有全文 CSV 混用（列冲突会拒绝写入）。
-汇报题录行数、日志和失败情况；`downloaded_files=0` 是此模式的预期结果。
-
-### 需要全文时
-
-1. Agent 按研究方向做同义发散，产出 concept groups JSON。  
-2. `prepare --topic ... --concept-groups '...'`（或 `@path`）→ `keyword_workspace/<topic>/` 与 L1–L4 式。  
-3. **先** `cnki-list --level L1 --search-md ...` 看 TOTAL。  
-4. TOTAL 够用再 `cnki --level L1 --out-name <固定名> --until <TOTAL或用户目标>`（不要带死 `--num 50`，不要只跑一批）。  
-5. L1 太少且用户要更多 → 升 **L2**（用户明确同意后再 L3/L4）。
-
-概念组示例：
-
-```json
-[
-  {"name": "数字经济", "keywords": ["数字经济", "数字化", "数据要素"]},
-  {"name": "全要素生产率", "keywords": ["全要素生产率", "TFP"]}
-]
-```
-
-Elsevier 默认同时下载 **完整 PDF + XML**；PDF 走正文 Object Retrieval 对象接口。`downloaded_files` 统计完整 PDF，XML 单独统计；仅 XML 成功的论文要报告失败原因，不计入完整下载。详见 [references/workflows.md](references/workflows.md)。
-
-## 错误速查
-
-| 现象 | 处理 |
-|------|------|
-| 找不到 gleaner_cli.py / 用户说安装 skill | **先 clone 仓库**，再 pip + `install-skill`；禁止只拷 SKILL.md |
-| setup / ready=false | 按 status 的 next_steps 配代理、CJY、**cookies**、Elsevier Key；无 cookie 勿开 cnki |
-| cookie / 登录相关失败 | Agent 自己热启动 `python login.py`（仅首次 `ACQ_ALLOW_COLD_LOGIN=1`）；不要只跑 login-hint |
-| 子进程非 0 | 读 `corpus/*_run.log` 尾部，汇报 log 路径 |
-| 0 命中 | 升 level、放宽年份或改 query；先 list 再 collect |
+凭据仅存本机忽略文件或环境变量；不回显、不提交密钥或 Cookie。详见 [环境配置](references/env.md) 和 [工作流](references/workflows.md)。

@@ -9,6 +9,7 @@
 URL 仍带 /verify 不算失败。没有拼图面板绝不送超级鹰。
 无需个人知网账号。Agent 不要自己用浏览器工具抠 cookie。
 """
+import argparse
 import json
 import os
 import sys
@@ -20,7 +21,7 @@ from playwright.sync_api import sync_playwright
 from config import COOKIES_FILE, CNKI_SEARCH_URL
 
 _MAX_AUTO_SOLVE = 2  # 看得见拼图时最多打码两轮
-_WIDGET_WAIT_SEC = 5
+_WIDGET_WAIT_SEC = 15
 _MANUAL_WAIT_SEC = 90
 
 try:
@@ -31,8 +32,8 @@ except Exception:
 
 def apply_login_credentials() -> None:
     """灌入 .env 里的 CJY_* / ACQ_PROXY，供超级鹰与机构代理使用。"""
-    from acq.cli_support import apply_credentials, load_credentials, resolve_root
-    apply_credentials(load_credentials(resolve_root()))
+    from acq.cli_support import apply_credentials, load_credentials
+    apply_credentials(load_credentials(Path(__file__).resolve().parent))
 
 
 def _still_on_captcha(page, url: str) -> bool:
@@ -52,10 +53,10 @@ def try_auto_solve_login_captcha(page, max_attempts: int = _MAX_AUTO_SOLVE) -> b
     try:
         return bool(solve_slider_captcha(page, max_attempts=max_attempts))
     except RuntimeError as e:
-        print(f"[login] 超级鹰未就绪，请手拖滑块：{e}")
+        print(f"[login] 超级鹰配置或服务错误：{e}")
         return False
     except Exception as e:
-        print(f"[login] 自动解异常，请手拖滑块：{e}")
+        print(f"[login] 自动验证失败：{e}")
         return False
 
 
@@ -93,8 +94,18 @@ def persist_warm_cookies(context, page) -> bool:
     if _still_on_captcha(page, url):
         print("[login] 拼图还在，不覆盖 cookies.json")
         return False
+    from captcha import _has_pass_signal
+    if not _has_pass_signal(page):
+        print("[login] 未确认检索页或验证成功信号，保留原会话。")
+        return False
+    if any(_still_on_captcha(p, getattr(p, "url", "")) for p in iter_context_pages(page)):
+        print("[login] 其它标签页仍在验证，保留原会话。")
+        return False
     try:
         cookies = context.cookies()
+        if not cookies:
+            print("[login] 会话为空，未写入。")
+            return False
         COOKIES_FILE.write_text(
             json.dumps(cookies, ensure_ascii=False, indent=2), encoding="utf-8"
         )
@@ -193,65 +204,70 @@ def _context_kwargs() -> dict:
         ),
         accept_downloads=True,
     )
-    proxy = (os.environ.get("ACQ_PROXY") or "").strip()
+    from acq.network_config import proxy_server
+    proxy = proxy_server()
     if proxy:
         kwargs["proxy"] = {"server": proxy}
     return kwargs
 
 
-def main() -> None:
+def main(argv=None) -> int:
+    parser = argparse.ArgumentParser(description="普通版知网首次验证与会话刷新")
+    parser.add_argument("--first-run", action="store_true", help="首次安装允许建立新会话")
+    args = parser.parse_args(argv)
     apply_login_credentials()
+    if args.first_run:
+        os.environ["ACQ_ALLOW_COLD_LOGIN"] = "1"
+    try:
+        context_options = _context_kwargs()
+    except ValueError as exc:
+        print(f"[login] {exc}")
+        return 1
     pw = sync_playwright().start()
-    channel = os.environ.get("ACQ_BROWSER_CHANNEL", "")
-    launch = dict(
-        headless=False,
-        args=[
-            "--disable-blink-features=AutomationControlled",
-            "--exclude-switches=enable-automation",
-            "--disable-infobars",
-            "--start-maximized",
-        ],
-    )
-    if channel:
-        launch["channel"] = channel
-    browser = pw.chromium.launch(**launch)
-    context = browser.new_context(**_context_kwargs())
-    stealth = Path(__file__).resolve().parent / "libs" / "stealth.min.js"
-    if stealth.is_file():
-        context.add_init_script(path=str(stealth))
-    load_existing_session(context)
-    page = context.new_page()
-    page.goto(CNKI_SEARCH_URL, wait_until="domcontentloaded", timeout=30000)
-    time.sleep(2.0)
-
-    print("[login] 已打开知网。有拼图才打码；过验证立刻写 cookies.json 并退出。")
+    browser = None
     saved = False
     try:
+        launch = dict(headless=False, args=["--disable-blink-features=AutomationControlled",
+                      "--disable-infobars", "--start-maximized"])
+        if "proxy" not in context_options:
+            launch["args"].append("--no-proxy-server")
+        channel = (os.environ.get("ACQ_BROWSER_CHANNEL") or ("msedge" if os.name == "nt" else "")).strip()
+        if channel:
+            launch["channel"] = channel
+        browser = pw.chromium.launch(**launch)
+        context = browser.new_context(**context_options)
+        stealth = Path(__file__).resolve().parent / "libs" / "stealth.min.js"
+        if stealth.is_file():
+            context.add_init_script(path=str(stealth))
+        load_existing_session(context)
+        page = context.new_page()
+        page.goto(CNKI_SEARCH_URL, wait_until="domcontentloaded", timeout=30000)
+        print("[login] 页面已打开，等待验证面板或检索页就绪。", flush=True)
         target = wait_for_widget(page)
         if target:
-            print("[login] 检测到拼图，超级鹰最多试 2 次（无面板不打码）")
-            try_auto_solve_login_captcha(target)
-            if not _still_on_captcha(target, getattr(target, "url", "") or ""):
+            print("[login] 发现验证码，调用项目内超级鹰流程，最多尝试两次。", flush=True)
+            solved = try_auto_solve_login_captcha(target)
+            if solved:
                 saved = persist_after_pass(context, target)
-            if not saved:
+            if not saved and os.environ.get("ACQ_MANUAL_CAPTCHA") == "1":
                 saved = wait_for_manual_pass(context, target)
         else:
-            print("[login] 未出现拼图，直接保存当前会话")
             saved = persist_after_pass(context, page)
-    except Exception as e:
-        print(f"[login] 过程异常: {e}")
+    except SystemExit as exc:
+        print(str(exc))
+    except Exception as exc:
+        print(f"[login] 登录失败（{type(exc).__name__}）；检查网络、代理及浏览器安装，原会话保留。")
+    finally:
         try:
-            saved = persist_warm_cookies(context, page) or saved
-        except Exception:
-            pass
-
-    try:
-        browser.close()
-    except Exception:
-        pass
-    pw.stop()
-    print(f"[login] 完成。saved={saved} path={COOKIES_FILE}")
+            if browser is not None:
+                browser.close()
+        finally:
+            pw.stop()
+    print(json.dumps({"ok": saved, "stage": "login", "cookies_saved": saved}, ensure_ascii=False))
+    if not saved:
+        print("[login] 首次验证未完成。查看上方错误；配置问题先运行 python gleaner_cli.py score，修正后重试。")
+    return 0 if saved else 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -4,7 +4,6 @@ ddddocr 对多缺口干扰滑块不可靠（必选错缺口），已弃用；改
 """
 import hashlib
 import os
-import random
 import time
 
 import requests
@@ -30,7 +29,10 @@ def _cjy_softid() -> str:
 
 
 def _require_cjy():
-    if not (_cjy_user() and _cjy_pass_raw() and _cjy_softid()):
+    from acq.credential_checks import configured_value
+    softid = _cjy_softid()
+    if not (all(configured_value(v) for v in (_cjy_user(), _cjy_pass_raw(), softid))
+            and softid.isdigit() and int(softid) > 0):
         raise RuntimeError(
             "超级鹰账号未配置：请设置环境变量 CJY_USER / CJY_PASS / CJY_SOFTID"
             "（见 README 或 .env.example）"
@@ -137,35 +139,23 @@ def _captcha_present(page: Page) -> bool:
 
 
 def _human_like_drag(page: Page, slider, distance: float) -> None:
-    """人形拖拽：缓出曲线 + y 抖动 + 过冲回正（已验证可过 tianai 轨迹校验）。"""
+    """沿水平方向平稳拖至目标；不随机抖动，不超调回拉。"""
     box = slider.bounding_box()
     if not box:
-        print("[captcha] 滑块无 bounding box")
-        return
+        raise RuntimeError("滑块位置尚未就绪")
     start_x = box["x"] + box["width"] / 2
     start_y = box["y"] + box["height"] / 2
     page.mouse.move(start_x, start_y)
-    time.sleep(random.uniform(0.1, 0.3))
     page.mouse.down()
-    time.sleep(random.uniform(0.1, 0.2))
-    steps = random.randint(30, 50)
-    current_x = start_x
-    for i in range(steps):
-        progress = (i + 1) / steps
-        eased = 1 - (1 - progress) ** 2          # 先快后慢
-        target_x = start_x + distance * eased
-        move_x = target_x - current_x
-        jitter_y = random.uniform(-2, 2)
-        page.mouse.move(current_x + move_x, start_y + jitter_y)
-        current_x += move_x
-        time.sleep(random.uniform(0.01, 0.04))
-    overshoot = random.uniform(2, 6)             # 过冲后回正
-    page.mouse.move(current_x + overshoot, start_y + random.uniform(-1, 1))
-    time.sleep(random.uniform(0.05, 0.15))
-    page.mouse.move(current_x, start_y)
-    time.sleep(random.uniform(0.1, 0.3))
-    page.mouse.up()
-    time.sleep(1)
+    try:
+        for step in range(1, 26):
+            progress = step / 25
+            eased = progress * progress * (3 - 2 * progress)
+            page.mouse.move(start_x + distance * eased, start_y)
+            time.sleep(0.04)
+    finally:
+        page.mouse.up()
+    time.sleep(0.5)
 
 
 _PANEL_SELECTORS = (
@@ -321,8 +311,12 @@ def solve_slider_captcha(page: Page, max_attempts: int = 4) -> bool:
         res = _cjy_solve(img, 9602)
         print(f"[captcha] 超级鹰: err_no={res.get('err_no')} pic_str={res.get('pic_str')}")
         if res.get("err_no") != 0:
-            time.sleep(2)
-            continue
+            reason = str(res.get("err_str") or "未提供错误说明")
+            for secret in (_cjy_user(), _cjy_pass_raw(), _cjy_pass()):
+                if secret:
+                    reason = reason.replace(secret, "[REDACTED]")
+            print(f"[captcha] 超级鹰服务拒绝请求：{reason[:200]}；请检查账号、软件 ID 和积分。")
+            return False
         pic_id = res.get("pic_id", "")
         try:
             p1, p2 = res.get("pic_str", "").split("|")

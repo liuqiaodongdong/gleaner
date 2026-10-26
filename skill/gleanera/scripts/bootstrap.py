@@ -1,4 +1,4 @@
-# skill/gleaner/scripts/bootstrap.py — 只装 Skill 时也要把仓库拉下来
+# skill/gleanera/scripts/bootstrap.py — 只装 Skill 时也要把仓库拉下来
 """无仓库则 git clone + pip，再跑 install-skill。有仓库则只注册 Skill。
 
 用法：
@@ -16,17 +16,17 @@ REPO_URL = "https://github.com/liuqiaodongdong/gleaner.git"
 
 
 def _cli_in(root: Path) -> Path | None:
-    cli = root / "gleaner_cli.py"
+    cli = root / "gleanera_cli.py"
     return cli if cli.is_file() else None
 
 
 def find_existing_cli() -> Path | None:
-    env = (os.environ.get("GLEANER_ROOT") or "").strip()
+    env = (os.environ.get("GLEANERA_ROOT") or "").strip()
     if env:
         found = _cli_in(Path(env).expanduser())
         if found:
             return found
-    marker = Path(__file__).resolve().parent.parent / ".gleaner_root"
+    marker = Path(__file__).resolve().parent.parent / ".gleanera_root"
     if marker.is_file():
         text = marker.read_text(encoding="utf-8").strip()
         if text:
@@ -37,14 +37,14 @@ def find_existing_cli() -> Path | None:
     found = _cli_in(cwd)
     if found:
         return found
-    return _cli_in(cwd / "gleaner")
+    return _cli_in(cwd / "gleanera")
 
 
 def default_dest() -> Path:
-    override = (os.environ.get("GLEANER_BOOTSTRAP_DEST") or "").strip()
+    override = (os.environ.get("GLEANERA_BOOTSTRAP_DEST") or "").strip()
     if override:
         return Path(override).expanduser().resolve()
-    cwd_g = Path.cwd() / "gleaner"
+    cwd_g = Path.cwd() / "gleanera"
     if _cli_in(cwd_g):
         return cwd_g.resolve()
     return cwd_g.resolve()
@@ -55,15 +55,15 @@ def clone_repo(dest: Path) -> Path:
     if _cli_in(dest):
         return dest.resolve()
     if dest.exists() and any(dest.iterdir()) and not (dest / ".git").exists():
-        dest = dest / "gleaner"
+        dest = dest / "gleanera"
     dest.parent.mkdir(parents=True, exist_ok=True)
     if _cli_in(dest):
         return dest.resolve()
     print(f"[bootstrap] git clone {REPO_URL} -> {dest}", flush=True)
-    subprocess.check_call(["git", "clone", REPO_URL, str(dest)])
+    subprocess.check_call(["git", "clone", "--branch", "feature/cnki-institution-session", "--single-branch", REPO_URL, str(dest)])
     cli = _cli_in(dest)
     if not cli:
-        raise SystemExit(f"[bootstrap] clone 后仍没有 gleaner_cli.py: {dest}")
+        raise SystemExit(f"[bootstrap] clone 后仍没有 gleanera_cli.py: {dest}")
     return dest.resolve()
 
 
@@ -74,11 +74,11 @@ def pip_and_register(root: Path) -> None:
         subprocess.check_call(
             [sys.executable, "-m", "pip", "install", "-r", str(req)]
         )
-    cli = root / "gleaner_cli.py"
-    print("[bootstrap] python gleaner_cli.py install-skill", flush=True)
+    cli = root / "gleanera_cli.py"
+    print("[bootstrap] python gleanera_cli.py install-skill", flush=True)
     subprocess.check_call([sys.executable, str(cli), "install-skill"])
-    print(f"[bootstrap] 完成。请设置 GLEANER_ROOT={root}", flush=True)
-    print("[bootstrap] 然后：python gleaner_cli.py status", flush=True)
+    print(f"[bootstrap] 完成。请设置 GLEANERA_ROOT={root}", flush=True)
+    print("[bootstrap] 然后：python gleanera_cli.py status", flush=True)
 
 
 def main(argv: list[str] | None = None) -> int:

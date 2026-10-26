@@ -192,6 +192,7 @@ def test_detail_main_never_downloads(tmp_path, monkeypatch):
     monkeypatch.setattr(downloader, "is_already_downloaded", forbidden)
     context, page = Mock(), Mock()
     monkeypatch.setattr(browser, "launch_browser", lambda: (None, None, context, page))
+    monkeypatch.setattr("acq.cnki_session.wait_for_institution_identity", lambda p: True)
     close = Mock()
     monkeypatch.setattr(browser, "close_browser", close)
     monkeypatch.setattr(browser, "save_cookies_after_captcha", lambda _: None)

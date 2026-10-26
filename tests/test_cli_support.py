@@ -8,7 +8,7 @@ from acq import cli_support as cs
 
 
 def test_resolve_root_prefers_cli_over_env(tmp_path, monkeypatch):
-    monkeypatch.setenv("GLEANER_ROOT", str(tmp_path / "env_root"))
+    monkeypatch.setenv("GLEANERA_ROOT", str(tmp_path / "env_root"))
     (tmp_path / "env_root").mkdir()
     cli = tmp_path / "cli_root"
     cli.mkdir()
@@ -18,7 +18,7 @@ def test_resolve_root_prefers_cli_over_env(tmp_path, monkeypatch):
 def test_resolve_root_uses_env(tmp_path, monkeypatch):
     r = tmp_path / "from_env"
     r.mkdir()
-    monkeypatch.setenv("GLEANER_ROOT", str(r))
+    monkeypatch.setenv("GLEANERA_ROOT", str(r))
     assert cs.resolve_root(None) == r.resolve()
 
 
@@ -36,7 +36,7 @@ def test_load_credentials_from_dotenv(tmp_path):
 def test_load_credentials_from_mcp_json_env(tmp_path):
     mcp = {
         "mcpServers": {
-            "gleaner": {
+            "gleanera": {
                 "env": {"CJY_SOFTID": "978958", "ACQ_PROXY": "http://127.0.0.1:10808"}
             }
         }
@@ -55,7 +55,7 @@ def test_load_credentials_dotenv_wins_over_mcp_json(tmp_path):
     )
     mcp = {
         "mcpServers": {
-            "gleaner": {
+            "gleanera": {
                 "env": {
                     "ACQ_PROXY": "http://from-mcp:9",
                     "CJY_USER": "from_mcp",
@@ -215,13 +215,13 @@ def test_resolve_tiered_expression_requires_search_or_topic(tmp_path):
 
 def _fake_skill_repo(tmp_path: Path, with_env_example: bool = True) -> Path:
     repo = tmp_path / "repo"
-    src = repo / "skill" / "gleaner" / "scripts"
+    src = repo / "skill" / "gleanera" / "scripts"
     src.mkdir(parents=True)
-    (repo / "skill" / "gleaner" / "SKILL.md").write_text(
+    (repo / "skill" / "gleanera" / "SKILL.md").write_text(
         "# gleaner\n", encoding="utf-8"
     )
     (src / "gleaner.ps1").write_text("# wrapper\n", encoding="utf-8")
-    (repo / "gleaner_cli.py").write_text("# stub\n", encoding="utf-8")
+    (repo / "gleanera_cli.py").write_text("# stub\n", encoding="utf-8")
     if with_env_example:
         (repo / ".env.example").write_text(
             "CJY_USER=\nELSEVIER_API_KEY=\n", encoding="utf-8"
@@ -234,14 +234,14 @@ def test_install_user_skill_copies_and_writes_marker(tmp_path):
     home = tmp_path / "home"
     result = cs.install_user_skill(repo, home=home)
     assert result["ok"] is True
-    assert result["gleaner_root"] == str(repo.resolve())
+    assert result["gleanera_root"] == str(repo.resolve())
     assert result["env_template_created"] is True
     assert (repo / ".env").read_text(encoding="utf-8").startswith("CJY_USER=")
     for rel in cs.SKILL_HOME_DESTS:
         dest = home.joinpath(*rel)
         assert (dest / "SKILL.md").is_file()
         assert (dest / "scripts" / "gleaner.ps1").is_file()
-        assert (dest / ".gleaner_root").read_text(encoding="utf-8") == str(
+        assert (dest / ".gleanera_root").read_text(encoding="utf-8") == str(
             repo.resolve()
         )
         assert str(dest) in result["installed"]

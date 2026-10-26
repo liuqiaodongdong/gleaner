@@ -1,37 +1,20 @@
-# 安装
+# 安装 Gleanera 机构版
 
-完整说明见 [README.md](README.md)。
+适用情况：位于校外，学校支持通过 CNKI 机构入口登录。先克隆机构分支到独立目录：
 
-```bash
-git clone https://github.com/liuqiaodongdong/gleaner.git
-cd gleaner
-pip install -r requirements.txt
-python gleaner_cli.py install-skill
+```powershell
+git clone --branch feature/cnki-institution-session --single-branch https://github.com/liuqiaodongdong/gleaner.git gleanera
+cd gleanera
+python -m pip install -r requirements.txt
+python gleanera_cli.py install-skill
+python login.py
+python gleanera_cli.py status
 ```
 
-需要 **Python 3.11+**。采集入口是 `gleaner_cli.py`。  
-`install-skill` 把仓库内 `skill/gleaner/` 注册到 `~/.grok` / `~/.cursor` / `~/.codex`。用户若只说「安装 skill」，Agent 的**第一条命令必须是** `git clone https://github.com/liuqiaodongdong/gleaner.git`，不要只拷 SKILL.md。也可跑 `skill/gleaner/scripts/bootstrap.py`（没有仓库会自己 clone）。
+Python 3.11+；Windows 使用系统 Edge。首次学校机构认证由用户在浏览器完成，脚本确认机构身份后自动保存知网会话。
 
-## 配置
+默认直连，`ACQ_PROXY` 可选，PORT 占位符必须替换为真实端口。无需 Elsevier Key，首次机构登录无需超级鹰；采集验证码的超级鹰配置为可选。
 
-1. 复制 [`.env.example`](.env.example) 为 `.env`，按需填写 `CJY_*`、`ELSEVIER_API_KEY`、`ACQ_PROXY` 等（**不要**提交 git）。
-2. Elsevier 也可把 Key 单行写入 `acq/data/.elsevier_key`。
-3. 可选：设置环境变量 `GLEANER_ROOT` 指向本仓库根。
-4. 知网**必须先有 cookies.json** 再采。Agent 跑 `login.py`：超级鹰自动过滑块并写入文件，用户不用手填 cookie。仅首次无文件才 `ACQ_ALLOW_COLD_LOGIN=1`。无 cookie 禁止 `cnki` / `cnki-list`（会空烧超级鹰）。
+机构版使用 `gleanera_cli.py`、`GLEANERA_ROOT`、`skills/gleanera` 和 `.gleanera_root`。普通版使用原来的 `gleaner` 名称，两者可以同时安装。
 
-## 使用（Skill + CLI）
-
-用统一 CLI：
-
-```bash
-# 就绪检查（务必先跑）
-python gleaner_cli.py status
-
-# 子命令
-python gleaner_cli.py install-skill|prepare|cnki-list|cnki|els|login-hint|sources|score
-
-# 知网全文：--until 目标篇数，一条命令内串行多批（批间自动 login.py）
-python gleaner_cli.py cnki --level L1 --search-md "<search.md>" --out-name demo_L1 --until 200
-```
-
-用户 Skill 用 `python gleaner_cli.py install-skill` 注册，不要手拷目录。当前会话设 `GLEANER_ROOT` 指向本仓库根。
+旧机构版更新后执行 `python gleanera_cli.py install-skill` 注册新名称；本机 `.env`、Cookie、机构会话标记和文献输出保留。详见 [README](README.md)。

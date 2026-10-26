@@ -179,6 +179,9 @@ def main():
             search_professional(page, p["expression"])
         else:
             search_keyword(page, p["keyword"])
+        from acq.cnki_session import wait_for_institution_identity
+        if not wait_for_institution_identity(page):
+            raise RuntimeError("未确认学校机构身份；停止采集并保留会话，请运行 python login.py 登录。")
         save_cookies_after_captcha(context)
         total = get_total_results(page)
         print("[list] TOTAL=", total)

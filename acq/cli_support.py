@@ -15,46 +15,45 @@ DEFAULT_ROOT = Path(__file__).resolve().parent.parent
 _ENV_KEYS = (
     "CJY_USER", "CJY_PASS", "CJY_SOFTID",
     "ACQ_PROXY", "ACQ_HEADLESS", "ACQ_BROWSER_CHANNEL",
-    "ELSEVIER_API_KEY",
 )
 
 
 REPO_CLONE_URL = "https://github.com/liuqiaodongdong/gleaner.git"
 
 # 拷到用户目录后，包装脚本靠这个指针找仓库（本机路径，勿提交）
-SKILL_ROOT_MARKER = ".gleaner_root"
+SKILL_ROOT_MARKER = ".gleanera_root"
 
 SKILL_HOME_DESTS = (
-    (".grok", "skills", "gleaner"),
-    (".cursor", "skills", "gleaner"),
-    (".codex", "skills", "gleaner"),
+    (".grok", "skills", "gleanera"),
+    (".cursor", "skills", "gleanera"),
+    (".codex", "skills", "gleanera"),
 )
 
 
 def resolve_root(cli_root: str | None = None) -> Path:
     if cli_root and str(cli_root).strip():
         return Path(cli_root).expanduser().resolve()
-    env = (os.environ.get("GLEANER_ROOT") or "").strip()
+    env = (os.environ.get("GLEANERA_ROOT") or "").strip()
     if env:
         return Path(env).expanduser().resolve()
     return DEFAULT_ROOT.resolve()
 
 
 def _user_home() -> Path:
-    override = (os.environ.get("GLEANER_SKILL_HOME") or "").strip()
+    override = (os.environ.get("GLEANERA_SKILL_HOME") or "").strip()
     if override:
         return Path(override).expanduser().resolve()
     return Path.home()
 
 
 def skill_source_dir(root: Path) -> Path:
-    return Path(root) / "skill" / "gleaner"
+    return Path(root) / "skill" / "gleanera"
 
 
 def install_user_skill(root: Path, home: Path | None = None) -> dict:
-    """把仓库内 skill/gleaner 注册到 Grok / Cursor / Codex 用户 Skill 目录。
+    """把仓库内 skill/gleanera 注册到 Grok / Cursor / Codex 用户 Skill 目录。
 
-    每份副本写入 .gleaner_root，指向本仓库，这样包装脚本不必依赖环境变量。
+    每份副本写入 .gleanera_root，指向本仓库，这样包装脚本不必依赖环境变量。
     不覆盖已有 .env；若仓库还没有 .env 且存在 .env.example，则复制一份模板。
     """
     root = Path(root).expanduser().resolve()
@@ -62,7 +61,7 @@ def install_user_skill(root: Path, home: Path | None = None) -> dict:
     if not (src / "SKILL.md").is_file():
         raise FileNotFoundError(
             f"仓库内没有 Skill 源 {src / 'SKILL.md'}。"
-            f"请先 git clone {REPO_CLONE_URL}"
+            f"请先 git clone --branch feature/cnki-institution-session --single-branch {REPO_CLONE_URL} gleanera"
         )
     home = Path(home).expanduser().resolve() if home is not None else _user_home()
     installed: list[str] = []
@@ -91,18 +90,18 @@ def install_user_skill(root: Path, home: Path | None = None) -> dict:
     return {
         "ok": True,
         "command": "install-skill",
-        "gleaner_root": str(root),
+        "gleanera_root": str(root),
         "installed": installed,
         "env_template_created": env_created,
         "hint": (
-            "已写入各 Skill 目录的 .gleaner_root；当前会话仍建议设置 "
-            f"GLEANER_ROOT={root}"
+            "已写入各 Skill 目录的 .gleanera_root；当前会话仍建议设置 "
+            f"GLEANERA_ROOT={root}"
         ),
         "next_steps_for_agent": [
-            f"当前会话设置 GLEANER_ROOT={root}",
-            "python gleaner_cli.py status",
-            "按 status.blockers 写 .env（CJY_* / ACQ_PROXY / ELSEVIER_API_KEY），不要回显密钥",
-            "知网无 cookies.json：仅首次 ACQ_ALLOW_COLD_LOGIN=1 后 python login.py",
+            f"当前会话设置 GLEANERA_ROOT={root}",
+            "python gleanera_cli.py status",
+            "先运行 python login.py 完成学校机构认证；默认直连，代理和超级鹰均可选",
+            "知网机构会话未就绪：运行 python login.py，由用户完成学校认证",
         ],
     }
 
@@ -135,7 +134,7 @@ def load_credentials(root: Path) -> dict[str, str]:
             data = json.loads(mcp_path.read_text(encoding="utf-8"))
             env = (
                 data.get("mcpServers", {})
-                .get("gleaner", {})
+                .get("gleanera", {})
                 .get("env")
                 or {}
             )
@@ -146,10 +145,10 @@ def load_credentials(root: Path) -> dict[str, str]:
                         creds.setdefault(str(k), str(v))
         except Exception:
             pass
-    # 只返回白名单键 + 其它 ACQ_/CJY_/ELSEVIER_ 前缀
+    # 只返回机构版使用的 ACQ_/CJY_ 配置
     filtered: dict[str, str] = {}
     for k, v in creds.items():
-        if k in _ENV_KEYS or k.startswith(("ACQ_", "CJY_", "ELSEVIER_")):
+        if k in _ENV_KEYS or k.startswith(("ACQ_", "CJY_")):
             filtered[k] = v
     return filtered
 
@@ -262,12 +261,12 @@ def resolve_tiered_expression(
             )
             if not candidates:
                 raise FileNotFoundError(
-                    f"未找到 keyword_workspace/{topic}/*/search.md，请先 python gleaner_cli.py prepare"
+                    f"未找到 keyword_workspace/{topic}/*/search.md，请先 python gleanera_cli.py prepare"
                 )
             path = candidates[0]
     path = Path(path)
     if not path.is_file():
-        raise FileNotFoundError(f"search.md 不存在: {path}（请先 python gleaner_cli.py prepare）")
+        raise FileNotFoundError(f"search.md 不存在: {path}（请先 python gleanera_cli.py prepare）")
 
     expression = extract_level_expression(path.read_text(encoding="utf-8"), level_u)
     validate_tiered_expression(expression)

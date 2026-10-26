@@ -5,7 +5,7 @@ import importlib.util
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-_BOOT = ROOT / "skill" / "gleaner" / "scripts" / "bootstrap.py"
+_BOOT = ROOT / "skill" / "gleanera" / "scripts" / "bootstrap.py"
 
 
 def _load():
@@ -19,29 +19,29 @@ def _load():
 def test_find_existing_cli_from_env(tmp_path, monkeypatch):
     repo = tmp_path / "repo"
     repo.mkdir()
-    (repo / "gleaner_cli.py").write_text("# stub\n", encoding="utf-8")
-    monkeypatch.setenv("GLEANER_ROOT", str(repo))
+    (repo / "gleanera_cli.py").write_text("# stub\n", encoding="utf-8")
+    monkeypatch.setenv("GLEANERA_ROOT", str(repo))
     monkeypatch.chdir(tmp_path)
     mod = _load()
-    assert mod.find_existing_cli() == repo / "gleaner_cli.py"
+    assert mod.find_existing_cli() == repo / "gleanera_cli.py"
 
 
 def test_find_existing_cli_from_cwd(tmp_path, monkeypatch):
-    (tmp_path / "gleaner_cli.py").write_text("# stub\n", encoding="utf-8")
-    monkeypatch.delenv("GLEANER_ROOT", raising=False)
+    (tmp_path / "gleanera_cli.py").write_text("# stub\n", encoding="utf-8")
+    monkeypatch.delenv("GLEANERA_ROOT", raising=False)
     monkeypatch.chdir(tmp_path)
     mod = _load()
     # 模块里的 Path(__file__) 仍指向仓库内 bootstrap，marker 可能存在；
     # cwd 有 cli 时应能找到（env 已清空）
     found = mod.find_existing_cli()
     assert found is not None
-    assert found.name == "gleaner_cli.py"
+    assert found.name == "gleanera_cli.py"
 
 
 def test_clone_repo_skips_when_cli_exists(tmp_path, monkeypatch):
-    dest = tmp_path / "gleaner"
+    dest = tmp_path / "gleanera"
     dest.mkdir()
-    (dest / "gleaner_cli.py").write_text("# stub\n", encoding="utf-8")
+    (dest / "gleanera_cli.py").write_text("# stub\n", encoding="utf-8")
     mod = _load()
     monkeypatch.setattr(
         mod.subprocess,
@@ -58,7 +58,7 @@ def test_clone_repo_calls_git(tmp_path, monkeypatch):
     def fake_call(cmd, *a, **k):
         calls.append(cmd)
         dest.mkdir()
-        (dest / "gleaner_cli.py").write_text("# stub\n", encoding="utf-8")
+        (dest / "gleanera_cli.py").write_text("# stub\n", encoding="utf-8")
         return 0
 
     mod = _load()

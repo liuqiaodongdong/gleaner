@@ -1,125 +1,47 @@
-# tests/test_setup_check.py —— 部署检查纯逻辑
 import json
+import pytest
 from acq import setup_check
+from acq.cnki_session import mark_institution_session
 
 
-def test_check_setup_shape(monkeypatch, tmp_path):
-    monkeypatch.delenv("CJY_USER", raising=False)
-    monkeypatch.delenv("CJY_PASS", raising=False)
-    monkeypatch.delenv("CJY_SOFTID", raising=False)
-    monkeypatch.delenv("ELSEVIER_API_KEY", raising=False)
-    monkeypatch.delenv("ACQ_PROXY", raising=False)
-    # 避开本机真实 cookies/key 路径：临时改 ROOT 相关常量
+@pytest.fixture
+def isolated(monkeypatch, tmp_path):
+    monkeypatch.setattr(setup_check, "ROOT", tmp_path)
     monkeypatch.setattr(setup_check, "COOKIES_FILE", tmp_path / "cookies.json")
-    monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / ".elsevier_key")
-    monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "carsi_state.json")
-    # 伪装无系统代理
-    monkeypatch.setattr(setup_check, "_proxy_detected", lambda: (False, "no proxy"))
-
-    s = setup_check.check_setup()
-    assert "next_steps_for_user" in s
-    assert "blockers" in s
-    assert s["lines"]["cnki"]["cnki_collect_ready"] is False
-    assert s["lines"]["elsevier"]["ready"] is False
-    assert set(s["lines"]) == {"cnki", "elsevier"}
-    assert s["ready_any_line"] is False
-    # 应引导超级鹰与 Elsevier
-    ids = {b["id"] for b in s["blockers"]}
-    assert "chaojiying" in ids
-    assert "elsevier_key" in ids
-    assert "cnki_cookies" in ids
-    ck_b = next(b for b in s["blockers"] if b["id"] == "cnki_cookies")
-    assert not ck_b.get("optional")
-    assert "空烧" in ck_b["action"] or "禁止" in ck_b["action"]
-    assert any("Agent" in x for x in s["next_steps_for_user"])
-    joined = " ".join(s["next_steps_for_user"])
-    assert "login.py" in joined
-    assert "自己跑" in joined or "自己启动" in joined or "自己执行" in joined
-    assert "先 login-hint" not in joined
-    els_b = next(b for b in s["blockers"] if b["id"] == "elsevier_key")
-    assert "dev.elsevier.com" in els_b["url"]
-    assert els_b.get("apply_steps")
-    assert any("Create API Key" in step for step in els_b["apply_steps"])
-    assert s["lines"]["elsevier"]["api_key"].get("apply_steps")
-    # 不泄露密钥字段
-    blob = json.dumps(s)
-    assert "utuf" not in blob
+    for key in ["ACQ_PROXY", "CJY_USER", "CJY_PASS", "CJY_SOFTID", "ELSEVIER_API_KEY"]:
+        monkeypatch.delenv(key, raising=False)
+    return tmp_path
 
 
-def test_check_setup_ready_when_configured(monkeypatch, tmp_path):
-    monkeypatch.setenv("CJY_USER", "u")
-    monkeypatch.setenv("CJY_PASS", "p")
-    monkeypatch.setenv("CJY_SOFTID", "1")
-    monkeypatch.setenv("ELSEVIER_API_KEY", "K" * 16)
-    monkeypatch.setenv("ACQ_PROXY", "http://127.0.0.1:9")
-    ck = tmp_path / "cookies.json"
-    ck.write_text(json.dumps([{"name": "a", "value": "b", "domain": ".cnki.net"}]), encoding="utf-8")
-    monkeypatch.setattr(setup_check, "COOKIES_FILE", ck)
-    monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / "no_key")
-    monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "no_carsi")
-
-    s = setup_check.check_setup()
-    assert s["lines"]["cnki"]["cnki_collect_ready"] is True
-    assert s["lines"]["elsevier"]["ready"] is True
-    assert s["ok"] is True
-    assert s["lines"]["elsevier"]["api_key"]["via"] == "env"
-    # 不回显 key
-    assert "KKKK" not in json.dumps(s)
+def test_missing_institution_login_has_only_cnki_blocker(isolated):
+    result = setup_check.check_setup()
+    assert set(result["lines"]) == {"cnki"}
+    assert not result["ok"]
+    assert [b["id"] for b in result["blockers"]] == ["institution_session"]
+    assert setup_check.preflight("cnki")["error"] == "setup_incomplete"
 
 
-def test_preflight_blocks_cnki_and_els(monkeypatch, tmp_path):
-    monkeypatch.delenv("CJY_USER", raising=False)
-    monkeypatch.delenv("CJY_PASS", raising=False)
-    monkeypatch.delenv("CJY_SOFTID", raising=False)
-    monkeypatch.delenv("ELSEVIER_API_KEY", raising=False)
-    monkeypatch.delenv("ACQ_PROXY", raising=False)
-    monkeypatch.setattr(setup_check, "COOKIES_FILE", tmp_path / "cookies.json")
-    monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / ".elsevier_key")
-    monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "x")
-    monkeypatch.setattr(setup_check, "_proxy_detected", lambda: (False, "no"))
-
-    blocked = setup_check.preflight("cnki")
-    assert blocked["error"] == "setup_incomplete"
-    assert blocked["line"] == "cnki"
-    assert setup_check.preflight("cnki_collect")["line"] == "cnki"
-    assert setup_check.preflight("elsevier")["error"] == "setup_incomplete"
+def test_institution_session_ready_without_proxy_or_cjy(isolated):
+    cookie = isolated / "cookies.json"
+    cookie.write_text('[{"name":"session","value":"test"}]', encoding="utf-8")
+    mark_institution_session(isolated, cookie)
+    result = setup_check.check_setup()
+    assert result["ok"] and result["lines"]["cnki"]["proxy"]["mode"] == "direct"
+    assert result["lines"]["cnki"]["chaojiying"]["optional"]
+    assert setup_check.preflight("cnki") is None
+    assert setup_check.preflight("cnki-list") is None
 
 
-def test_preflight_pass_when_ready(monkeypatch, tmp_path):
-    monkeypatch.setenv("CJY_USER", "u")
-    monkeypatch.setenv("CJY_PASS", "p")
-    monkeypatch.setenv("CJY_SOFTID", "1")
-    monkeypatch.setenv("ELSEVIER_API_KEY", "KEY")
-    monkeypatch.setenv("ACQ_PROXY", "http://127.0.0.1:9")
-    ck = tmp_path / "c.json"
-    ck.write_text(json.dumps([{"name": "a", "value": "b", "domain": ".cnki.net"}]), encoding="utf-8")
-    monkeypatch.setattr(setup_check, "COOKIES_FILE", ck)
-    monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / "k")
-    monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "x")
-    assert setup_check.preflight("cnki_collect") is None
-    assert setup_check.preflight("elsevier") is None
+def test_cookie_without_confirmed_institution_marker_is_not_ready(isolated):
+    (isolated / "cookies.json").write_text('[{"name":"session","value":"test"}]', encoding="utf-8")
+    assert not setup_check.check_setup()["ok"]
 
 
-def test_cnki_not_ready_without_cookies(monkeypatch, tmp_path):
-    monkeypatch.setenv("CJY_USER", "u")
-    monkeypatch.setenv("CJY_PASS", "p")
-    monkeypatch.setenv("CJY_SOFTID", "1")
-    monkeypatch.setenv("ACQ_PROXY", "http://127.0.0.1:9")
-    monkeypatch.setattr(setup_check, "COOKIES_FILE", tmp_path / "missing.json")
-    monkeypatch.setattr(setup_check, "ELS_KEY_FILE", tmp_path / "k")
-    monkeypatch.setattr(setup_check, "CARSI_STATE", tmp_path / "x")
-    s = setup_check.check_setup()
-    assert s["lines"]["cnki"]["cnki_collect_ready"] is False
-    assert s["lines"]["cnki"]["cnki_list_ready"] is False
-    blocked = setup_check.preflight("cnki")
-    assert blocked["error"] == "setup_incomplete"
-    assert "cookie" in blocked["message"].lower() or "cookies" in blocked["message"].lower()
+def test_invalid_optional_proxy_blocks_with_clear_error(isolated, monkeypatch):
+    monkeypatch.setenv("ACQ_PROXY", "http://127.0.0.1:PORT")
+    assert "proxy" in {b["id"] for b in setup_check.check_setup()["blockers"]}
 
 
-def test_intl_preflight_disabled_without_checking_credentials(monkeypatch):
-    def unexpected_setup():
-        raise AssertionError("Disabled line must not inspect credentials")
-    monkeypatch.setattr(setup_check, "check_setup", unexpected_setup)
-    blocked = setup_check.preflight("intl")
-    assert blocked["error"] == "line_disabled"
-    assert blocked["available_lines"] == ["cnki", "elsevier"]
+@pytest.mark.parametrize("line", ["intl", "elsevier", "els"])
+def test_removed_sources_rejected(isolated, line):
+    assert setup_check.preflight(line)["error"] == "unknown_line"

@@ -335,9 +335,9 @@ def build_markdown(
 
 ## Usage (Gleaner CLI)
 
-1. 先 `python gleaner_cli.py prepare`（本文件即其产物）
-2. 再 `python gleaner_cli.py cnki-list --level L1 --search-md 本路径 --num {num}`
-3. TOTAL 够用则 `python gleaner_cli.py cnki --level L1 --search-md 本路径 --num {num}`
+1. 先 `python gleanera_cli.py prepare`（本文件即其产物）
+2. 再 `python gleanera_cli.py cnki-list --level L1 --search-md 本路径 --num {num}`
+3. TOTAL 够用则 `python gleanera_cli.py cnki --level L1 --search-md 本路径 --num {num}`
 4. 结果太少则升到 L2 → L3 → L4
 """
 
@@ -407,7 +407,7 @@ def prepare_search(
         "levels": ladder,
         "recommended_level": "L1",
         "next": (
-            f'python gleaner_cli.py cnki-list --level L1 --search-md "{search_path}" --num {num}；'
+            f'python gleanera_cli.py cnki-list --level L1 --search-md "{search_path}" --num {num}；'
             f'够用再 cnki --level L1；结果少再 L2/L3/L4'
         ),
     }

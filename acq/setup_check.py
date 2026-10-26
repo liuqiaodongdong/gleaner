@@ -1,89 +1,21 @@
-# acq/setup_check.py —— 部署/凭据就绪检查（不打印密钥内容）
-"""供 gleaner_cli status 与 agent 首次引导使用。"""
-from __future__ import annotations
-
+"""Gleanera 的本地机构会话检查；不以代理或外部 API Key 作为必需条件。"""
 import json
-import os
 from pathlib import Path
+import os
+from acq.network_config import proxy_status
+from acq.credential_checks import configured_value
+from acq.cnki_session import resolve_session_mode, session_path
 
 ROOT = Path(__file__).resolve().parent.parent
 COOKIES_FILE = ROOT / "cookies.json"
-ELS_KEY_FILE = ROOT / "acq" / "data" / ".elsevier_key"
-CARSI_STATE = ROOT / "acq" / "cookies" / "carsi" / "state.json"
-
-_LOGIN_FIRST = (
-    "【Agent 自己执行，不要让用户拖滑块】"
-    "set ACQ_BROWSER_CHANNEL=msedge && set ACQ_ALLOW_COLD_LOGIN=1 && python login.py。"
-    "脚本内超级鹰 9602 自动过滑块并写 cookies.json。不要只跑 login-hint，不要另调超级鹰 API。"
-    "冷启动通常下不了全文，仅用于第一次建会话。"
-)
-_LOGIN_WARM = (
-    "续批次：不要设 ACQ_ALLOW_COLD_LOGIN，直接 python login.py（热启动）。"
-    "超级鹰仍由 login.py 自动解。过验证立刻写入。"
-)
-
-
-def _proxy_detected() -> tuple[bool, str]:
-    """返回 (是否有代理, 说明)。"""
-    v = (os.environ.get("ACQ_PROXY") or "").strip()
-    if v:
-        return True, f"ACQ_PROXY={v}"
-    try:
-        import winreg
-        k = winreg.OpenKey(
-            winreg.HKEY_CURRENT_USER,
-            r"Software\Microsoft\Windows\CurrentVersion\Internet Settings",
-        )
-        enable, _ = winreg.QueryValueEx(k, "ProxyEnable")
-        if not enable:
-            return False, "系统代理未开启，且未设 ACQ_PROXY"
-        server, _ = winreg.QueryValueEx(k, "ProxyServer")
-        if not server:
-            return False, "系统代理开关开着但 ProxyServer 为空"
-        return True, f"Windows 系统代理: {server}"
-    except Exception:
-        return False, "未检测到 ACQ_PROXY / 系统代理（非 Windows 或读注册表失败）"
-
-
-def _cnki_cookies() -> dict:
-    if not COOKIES_FILE.exists():
-        return {
-            "ok": False,
-            "status": "missing",
-            "path": str(COOKIES_FILE),
-            "hint": f"尚无 cookies.json。{_LOGIN_FIRST}",
-        }
-    try:
-        data = json.loads(COOKIES_FILE.read_text(encoding="utf-8"))
-    except Exception as e:
-        return {
-            "ok": False,
-            "status": "invalid",
-            "path": str(COOKIES_FILE),
-            "hint": f"cookies.json 无法解析: {e}。删掉坏文件后按首次处理。{_LOGIN_FIRST}",
-        }
-    n = len(data) if isinstance(data, list) else 0
-    if n <= 0:
-        return {
-            "ok": False,
-            "status": "empty",
-            "path": str(COOKIES_FILE),
-            "hint": f"cookies.json 为空。{_LOGIN_FIRST}",
-        }
-    return {
-        "ok": True,
-        "status": "present",
-        "path": str(COOKIES_FILE),
-        "cookie_count": n,
-        "hint": f"已有 CNKI cookies（换网络/代理后可能失效）。失效时热启动重录。{_LOGIN_WARM}",
-    }
-
 
 def _chaojiying() -> dict:
     user = (os.environ.get("CJY_USER") or "").strip()
     pwd = (os.environ.get("CJY_PASS") or "").strip()
     soft = (os.environ.get("CJY_SOFTID") or "").strip()
-    missing = [k for k, v in [("CJY_USER", user), ("CJY_PASS", pwd), ("CJY_SOFTID", soft)] if not v]
+    missing = [k for k, v in [("CJY_USER", user), ("CJY_PASS", pwd), ("CJY_SOFTID", soft)] if not configured_value(v)]
+    if soft and (not soft.isdigit() or int(soft) <= 0) and "CJY_SOFTID" not in missing:
+        missing.append("CJY_SOFTID")
     if missing:
         return {
             "ok": False,
@@ -92,7 +24,7 @@ def _chaojiying() -> dict:
             "apply_url": "https://www.chaojiying.com/",
             "hint": (
                 "CNKI 验证码需要超级鹰。请注册并充值积分，创建软件 ID(softid)，"
-                "把 CJY_USER / CJY_PASS / CJY_SOFTID 写入 GLEANER_ROOT/.env（见 .env.example），"
+                "把 CJY_USER / CJY_PASS / CJY_SOFTID 写入 GLEANERA_ROOT/.env（见 .env.example），"
                 "勿写入仓库。验证码类型使用 9602（水平滑块）。"
             ),
         }
@@ -101,260 +33,58 @@ def _chaojiying() -> dict:
         "status": "env_set",
         "user_set": True,
         "softid_set": True,
-        "hint": "超级鹰环境变量已配置（未校验账号是否有效；可用 python gleaner_cli.py score 查积分）",
+        "hint": "超级鹰环境变量已配置（未校验账号是否有效；可用 python gleanera_cli.py score 查积分）",
     }
 
 
-# Agent 引导文案：只认官方 Developer Portal，禁止误导向第三方/爬站
-ELSEVIER_APPLY = {
-    "portal": "https://dev.elsevier.com/",
-    "create_key": "https://dev.elsevier.com/apikey/manage",
-    "quotas": "https://dev.elsevier.com/api_key_settings.html",
-    "account": "https://account.elsevier.com/",
-    "guide_in_repo": "docs/ELSEVIER_API.md",
-    "steps": [
-        "用学校/机构邮箱注册或登录 Elsevier 账号：https://account.elsevier.com/",
-        "打开官方 Developer Portal：https://dev.elsevier.com/",
-        "进入 My API Key / Create API Key：https://dev.elsevier.com/apikey/manage",
-        "填写 Label（如 gleaner-local）；Website URL 本地可用 http://localhost（以页面校验为准）",
-        "复制生成的 API Key，写入 .env 的 ELSEVIER_API_KEY，或单行写入 acq/data/.elsevier_key",
-        "再跑 python gleaner_cli.py status，确认 lines.elsevier.ready=true",
-    ],
-    "agent_rules": [
-        "只引导用户申请 Elsevier 官方 API Key（dev.elsevier.com），不要推荐第三方 Key/镜像/破解",
-        "不要让用户用浏览器爬 science direct 网页代替本项目的官方 API",
-        "API Key 主要用于鉴权与配额；订阅全文仍依赖机构权益，未订刊可能下不到全文",
-        "不要回显完整 API Key；不要让用户把 Key 提交到 git",
-    ],
-}
+
+def _cnki_cookies():
+    result = {"ok": False, "status": "missing", "path": str(COOKIES_FILE),
+              "hint": "运行 python login.py，在知网官方机构入口选择学校并完成登录。"}
+    try:
+        cookies = json.loads(COOKIES_FILE.read_text(encoding="utf-8"))
+        if not isinstance(cookies, list) or not cookies:
+            result["status"] = "empty"
+            return result
+        if not session_path(ROOT).is_file():
+            result["status"] = "institution_identity_unconfirmed"
+            return result
+        resolve_session_mode(ROOT, "institution")
+    except (OSError, ValueError, TypeError) as exc:
+        result["status"] = "session_invalid" if COOKIES_FILE.exists() else "missing"
+        return result
+    result.update(ok=True, status="present", cookie_count=len(cookies),
+                  hint="本地机构会话匹配；实际有效性在访问时确认，下载期间不覆盖或自动重录。")
+    return result
 
 
-def _elsevier() -> dict:
-    if (os.environ.get("ACQ_DISABLE_ELSEVIER") or "").strip() == "1":
-        return {
-            "ok": False,
-            "status": "disabled",
-            "hint": "Elsevier API 已在当前部署中禁用。",
-        }
-    env = (os.environ.get("ELSEVIER_API_KEY") or "").strip()
-    file_ok = False
-    if ELS_KEY_FILE.exists():
-        try:
-            file_ok = bool(ELS_KEY_FILE.read_text(encoding="utf-8").strip())
-        except Exception:
-            file_ok = False
-    if env or file_ok:
-        return {
-            "ok": True,
-            "status": "configured",
-            "via": "env" if env else "file",
-            "hint": "Elsevier API key 已配置（不回显密钥内容）",
-            "guide": str(ROOT / "docs" / "ELSEVIER_API.md"),
-        }
-    return {
-        "ok": False,
-        "status": "missing",
-        "apply_url": ELSEVIER_APPLY["create_key"],
-        "portal": ELSEVIER_APPLY["portal"],
-        "key_file": str(ELS_KEY_FILE),
-        "guide": str(ROOT / "docs" / "ELSEVIER_API.md"),
-        "apply_steps": ELSEVIER_APPLY["steps"],
-        "agent_rules": ELSEVIER_APPLY["agent_rules"],
-        "hint": (
-            "缺少 Elsevier 官方 API Key。"
-            "请严格按官方流程：https://dev.elsevier.com/ → "
-            "https://dev.elsevier.com/apikey/manage 创建 Key；"
-            "建议学校邮箱；配到 ELSEVIER_API_KEY 或 acq/data/.elsevier_key。"
-            "完整步骤见 docs/ELSEVIER_API.md。禁止引导第三方 Key 或网页爬取。"
-        ),
-    }
-
-
-def _carsi() -> dict:
-    if CARSI_STATE.exists() and CARSI_STATE.stat().st_size > 10:
-        return {
-            "ok": True,
-            "status": "present",
-            "path": str(CARSI_STATE),
-            "hint": "CARSI cookie 状态文件存在（intl --sources 含 carsi 时可用）",
-        }
-    return {
-        "ok": False,
-        "status": "missing",
-            "required_for": "intl --sources 含 carsi 时需要",
-        "hint": "可选。默认 OA/NBER/Sci-Hub 不需要。若要用机构库 CARSI，需在本机完成浏览器 SSO 登录并保存 acq/cookies/carsi/state.json",
-    }
-
-
-def check_setup() -> dict:
-    """检查本机部署就绪状态。返回可 JSON 序列化的结构（不含密钥明文）。"""
-    proxy_ok, proxy_detail = _proxy_detected()
-    cnki_ck = _cnki_cookies()
+def check_setup():
+    proxy = proxy_status()
+    cookies = _cnki_cookies()
+    ready = cookies["ok"] and proxy["ok"]
     cjy = _chaojiying()
-    els = _elsevier()
-
-    cookies_ok = bool(cnki_ck["ok"])
-    # 无 cookie 的冷启动过不了验证，只会空烧超级鹰
-    cnki_collect_ready = bool(cjy["ok"] and proxy_ok and cookies_ok)
-    cnki_list_ready = bool(proxy_ok and cookies_ok)
-    lines = {
-        "cnki": {
-            "ready": cnki_collect_ready,
-            "cnki_collect_ready": cnki_collect_ready,
-            "cnki_list_ready": cnki_list_ready,
-            "cookies": cnki_ck,
-            "chaojiying": cjy,
-            "proxy": {"ok": proxy_ok, "detail": proxy_detail},
-            "tools": ["cnki", "cnki-list"],
-            "cnki_ready": cnki_collect_ready,
-            "agent_note": (
-                "CNKI（cnki / cnki-list）：代理 + cookies.json 为硬门槛；全文另需超级鹰。"
-                "无 cookie 禁止开浏览器采集，避免冷启动空烧超级鹰。"
-                "首次：ACQ_ALLOW_COLD_LOGIN=1 后 python login.py；之后热启动、不要冷启动。"
-            ),
-        },
-        "elsevier": {
-            "ready": bool(els["ok"]),
-            "api_key": els,
-            "tools": ["els"],
-            "agent_note": "仅需 Elsevier API key；无需浏览器/cookies。",
-        },
-    }
-
+    cjy["optional"] = True
+    cjy["hint"] = "可选：采集中出现验证码时使用；首次学校机构登录由用户在浏览器完成。"
+    cnki = {"ready": ready, "cnki_collect_ready": ready, "cnki_list_ready": ready,
+            "cnki_ready": ready, "cookies": cookies, "proxy": proxy, "chaojiying": cjy,
+            "tools": ["cnki", "cnki-list"], "agent_note": "只复用已确认的学校机构会话；失效即停止并提示登录。"}
     blockers = []
-    if not cjy["ok"]:
-        blockers.append({
-            "id": "chaojiying",
-            "severity": "cnki",
-            "title": "申请并配置超级鹰账号",
-            "url": "https://www.chaojiying.com/",
-            "action": "注册→充值→创建软件得 softid→把 CJY_USER/CJY_PASS/CJY_SOFTID 写入 .env",
-        })
-    if not proxy_ok:
-        blockers.append({
-            "id": "proxy",
-            "severity": "cnki",
-            "title": "配置可访问知网机构库的代理或校园网",
-            "action": "设置 ACQ_PROXY=http://host:port，或开启 Windows 系统代理（与浏览器一致）",
-        })
-    if not cookies_ok:
-        blockers.append({
-            "id": "cnki_cookies",
-            "severity": "cnki",
-            "title": "先录入 CNKI cookies（硬门槛，勿先采）",
-            "action": (
-                f"{_LOGIN_FIRST} {_LOGIN_WARM}"
-                "无 cookies.json 时禁止跑 cnki / cnki-list，否则冷启动只空烧超级鹰、下不了全文。"
-            ),
-        })
-    if not els["ok"] and els.get("status") != "disabled":
-        blockers.append({
-            "id": "elsevier_key",
-            "severity": "elsevier",
-            "title": "申请 Elsevier 官方 API Key（仅 dev.elsevier.com）",
-            "url": ELSEVIER_APPLY["create_key"],
-            "portal": ELSEVIER_APPLY["portal"],
-            "guide": "docs/ELSEVIER_API.md",
-            "apply_steps": ELSEVIER_APPLY["steps"],
-            "agent_rules": ELSEVIER_APPLY["agent_rules"],
-            "action": (
-                "学校邮箱登录 https://dev.elsevier.com/apikey/manage → Create API Key → "
-                "填 ELSEVIER_API_KEY 或 acq/data/.elsevier_key；详见 docs/ELSEVIER_API.md"
-            ),
-        })
-
-    ready_any = cnki_collect_ready or lines["elsevier"]["ready"]
-    ready_all_core = cnki_collect_ready and lines["elsevier"]["ready"]
-
-    next_steps = []
-    for b in blockers:
-        if b.get("optional"):
-            continue
-        step = f"[{b['severity']}] {b['title']}"
-        if b.get("url"):
-            step += f" → {b['url']}"
-        step += f"。{b['action']}"
-        next_steps.append(step)
-    for b in blockers:
-        if b.get("optional"):
-            next_steps.append(f"[可选/{b['severity']}] {b['title']}。{b['action']}")
-
-    if not next_steps:
-        next_steps.append("核心凭据已就绪。可用 python gleaner_cli.py 跑 cnki / els。")
-    else:
-        next_steps.insert(
-            0,
-            "【给 Agent】密钥类缺失项用清单协助用户填写（勿回显明文）。"
-            "CNKI 无 cookies.json：禁止 cnki / cnki-list；Agent 自己跑 python login.py"
-            "（超级鹰在脚本内自动过滑块），不要只跑 login-hint、不要让用户手拖。"
-            "对应线 ready=false 时不要强行采集，先完成配置再重跑 python gleaner_cli.py status。",
-        )
-
-    return {
-        "ok": ready_all_core,
-        "ready_any_line": ready_any,
-        "project_root": str(ROOT),
-        "lines": lines,
-        "blockers": blockers,
-        "next_steps_for_user": next_steps,
-        "how_to_configure": {
-            "env_example": str(ROOT / ".env.example"),
-            "readme": str(ROOT / "README.md"),
-            "note": "密钥只放 GLEANER_ROOT/.env 或本机 gitignore 文件，不要写进仓库、不要回显密钥明文。",
-        },
-    }
+    if not cookies["ok"]:
+        blockers.append({"id": "institution_session", "severity": "cnki", "title": "完成学校机构登录",
+                         "action": "python login.py；用户在浏览器完成认证后脚本自动保存会话。"})
+    if not proxy["ok"]:
+        blockers.append({"id": "proxy", "severity": "cnki", "title": "修正可选代理配置", "action": proxy["detail"]})
+    return {"ok": ready, "ready_any_line": ready, "project_root": str(ROOT), "session_mode": "institution",
+            "lines": {"cnki": cnki}, "blockers": blockers,
+            "next_steps_for_user": [b["action"] for b in blockers] or ["机构会话配置已就绪，可运行 cnki-list / cnki。"]}
 
 
-def preflight(line: str) -> dict | None:
-    """采集前检查。ready 则返回 None；否则返回应直接给用户/agent 的 dict。"""
-    line = (line or "").lower().strip()
-    if line in ("intl", "intl_collect", "international"):
-        return {
-            "ok": False,
-            "error": "line_disabled",
-            "line": "intl",
-            "message": "国际线已停用；Gleaner 仅保留 CNKI 与 Elsevier 采集线。",
-            "available_lines": ["cnki", "elsevier"],
-        }
-    s = check_setup()
-    if line in ("cnki", "cnki_collect"):
-        L = s["lines"]["cnki"]
-        if L["cnki_collect_ready"]:
-            return None
-        return {
-            "error": "setup_incomplete",
-            "line": "cnki",
-            "message": "CNKI 全文线尚未就绪：需要超级鹰 + 机构代理 + cookies.json（先 login，勿冷启动空烧超级鹰）。",
-            "setup": {
-                "chaojiying": L["chaojiying"],
-                "proxy": L["proxy"],
-                "cookies": L["cookies"],
-            },
-            "next_steps_for_user": s["next_steps_for_user"],
-            "hint": "请先跑 python gleaner_cli.py status，按 next_steps_for_user 引导用户配置后再试 cnki。",
-        }
-    if line in ("cnki-list", "cnki_list"):
-        L = s["lines"]["cnki"]
-        if L["cnki_list_ready"]:
-            return None
-        return {
-            "error": "setup_incomplete",
-            "line": "cnki-list",
-            "message": "CNKI 题录线尚未就绪：需要机构代理 + cookies.json（先 login，勿冷启动空烧超级鹰）。",
-            "setup": {"proxy": L["proxy"], "cookies": L["cookies"]},
-            "next_steps_for_user": s["next_steps_for_user"],
-            "hint": "请先配置 ACQ_PROXY 或系统代理，再跑 python gleaner_cli.py status 确认。",
-        }
-    if line in ("els", "elsevier", "els_collect"):
-        L = s["lines"]["elsevier"]
-        if L["ready"]:
-            return None
-        return {
-            "error": "setup_incomplete",
-            "line": "elsevier",
-            "message": "Elsevier 线尚未就绪：缺少 API key。",
-            "setup": {"api_key": L["api_key"]},
-            "next_steps_for_user": s["next_steps_for_user"],
-            "hint": "请先跑 python gleaner_cli.py status，引导用户申请 Elsevier API key 后再试 els。",
-        }
-    return None
+def preflight(line):
+    if line not in {"cnki", "cnki_collect", "cnki-list", "cnki_list"}:
+        return {"ok": False, "error": "unknown_line", "line": line}
+    status = check_setup()
+    if status["ok"]:
+        return None
+    return {"ok": False, "error": "setup_incomplete", "line": line,
+            "message": "机构会话未就绪或显式代理配置无效；请按提示完成登录或修正配置。",
+            "setup": status["lines"]["cnki"], "next_steps_for_user": status["next_steps_for_user"]}

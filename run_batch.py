@@ -1,4 +1,4 @@
-"""批量采集入口：从 UTF-8 JSON 读参数（避免命令行中文乱码，供 gleaner_cli 调用）。
+"""批量采集入口：从 UTF-8 JSON 读参数（避免命令行中文乱码，供 gleanera_cli 调用）。
 
 params.json 字段：
   keyword / topic   : 关键词模式
@@ -64,11 +64,10 @@ def main():
             search_professional(page, expression)
         else:
             search_keyword(page, keyword)
-        if os.environ.get("ACQ_SESSION_MODE") == "institution":
-            from acq.cnki_session import wait_for_institution_identity
-            if not wait_for_institution_identity(page):
-                print("[batch] 未确认机构身份，停止下载并保留 cookies；请主动运行 python login.py --institution", flush=True)
-                raise SystemExit(2)
+        from acq.cnki_session import wait_for_institution_identity
+        if not wait_for_institution_identity(page):
+            print("[batch] 未确认机构身份，停止下载并保留 cookies；请主动运行 python login.py --institution", flush=True)
+            raise SystemExit(2)
         save_cookies_after_captcha(context)
         total = get_total_results(page)
         print("[batch] TOTAL=", total)

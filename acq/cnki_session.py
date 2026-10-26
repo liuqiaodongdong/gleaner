@@ -23,13 +23,11 @@ def clear_session_marker(root: Path) -> None:
 
 
 def resolve_session_mode(root: Path, requested: str = "auto") -> str:
-    if requested not in {"auto", "legacy", "institution"}:
+    if requested not in {"auto", "institution"}:
         raise ValueError("未知会话模式")
-    if requested == "legacy":
-        return "legacy"
     path = session_path(root)
     if not path.exists():
-        return "institution" if requested == "institution" else "legacy"
+        return "institution"
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
         cookies = Path(root) / "cookies.json"

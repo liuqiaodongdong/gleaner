@@ -1,277 +1,70 @@
-# Gleaner
+# Gleanera · 知网校外机构版
 
-本分支提供机构登录旁路，操作入口为 `institution.ps1`，详见 [机构旁路说明](docs/INSTITUTION.md)。主目录仍使用 `main`；本 worktree 不替换全局 Skill。
+Gleanera 用于**不在校园网范围内，且学校支持通过 CNKI 机构登录入口完成身份认证**的情况。用户在可见浏览器中选择学校并完成认证，程序确认知网显示机构身份后保存会话，后续复用该会话检索和采集文献。
 
-多源学术文献采集（**Skill + CLI**）。把「检索 → 下载全文 → 归一化元数据」交给 Agent / 本机命令一键完成。入口是 `gleaner_cli.py` 与 `~/.grok/skills/gleaner/`。
+本分支只提供 CNKI，国际线和 Elsevier 线的代码、命令及专属依赖已移除。普通版 `gleaner` 位于 `main`；机构版 `gleanera` 位于 `feature/cnki-institution-session`。两套技能、CLI 和根目录环境变量分别管理。
 
-**Authors:** [liuqiaodongdong](https://github.com/liuqiaodongdong) and [Grok](https://x.ai)  
-仓库：https://github.com/liuqiaodongdong/gleaner
+## 安装
 
-| 来源 | CLI | 说明 | 产物 |
-|------|------|------|------|
-| **中国知网 CNKI** | `prepare` → `cnki-list` / `cnki` | 关键词 / 专业式 / **期刊分级 L1–L4**（`cnki_journal_tiers.json`） | PDF / CAJ / 题录 |
-| **Elsevier / ScienceDirect** | `els` | 官方 API + 期刊白名单 | Markdown（+ XML） |
-
-输出目录：`corpus/<批次>/metadata.csv`；全文采集另有 `papers/`。
-
----
-
-## 快速开始
-
-### 1. 安装
-
-```bash
-git clone https://github.com/liuqiaodongdong/gleaner.git
-cd gleaner
-
-python -m venv .venv
-# Windows
-.venv\Scripts\activate
-# macOS / Linux
-# source .venv/bin/activate
-
-pip install -r requirements.txt
-# 把 Skill 注册到 ~/.grok、~/.cursor、~/.codex（写入 .gleaner_root）
-python gleaner_cli.py install-skill
-# 若不用系统 Edge 跑知网，再执行：
-# playwright install chromium
-```
-
-需要 **Python 3.11+**。知网线建议 Windows + 系统 Edge。
-
-Agent 装机：用户说「安装项目」或「安装 skill」都是同一条——**第一条命令必须是 `git clone`**，再 `pip` 和 `install-skill`。只把 `SKILL.md` 拷到 `~/.cursor/skills` **不算安装**。没有仓库时可跑 [`skill/gleaner/scripts/bootstrap.py`](skill/gleaner/scripts/bootstrap.py)（会自己 clone）。约定见 [`skill/gleaner/SKILL.md`](skill/gleaner/SKILL.md)。
-
-### 2. 准备账号（按需）
-
-| 用途 | 是否需要 | 申请 |
-|------|----------|------|
-| 知网全文 | 机构网络/代理 + [超级鹰](https://www.chaojiying.com/)（验证码 9602） | 代理可用校园网/VPN；超级鹰需积分 |
-| Elsevier | **官方** API Key（免费学术额度） | 见下方；完整版 [docs/ELSEVIER_API.md](docs/ELSEVIER_API.md) |
-
-首次使用请先跑：
-
-```bash
-python gleaner_cli.py status
-```
-
-它会检查缺什么并给出配置步骤。
-
-#### Elsevier 官方 API Key（`els` 必需）
-
-本项目**只使用** [Elsevier Developer Portal](https://dev.elsevier.com/) 官方 API，**不要**使用第三方 Key、破解或网页爬取代替。
-
-1. 用**学校/机构邮箱**注册/登录：https://account.elsevier.com/  
-2. 打开 https://dev.elsevier.com/ → [Create / Manage API Key](https://dev.elsevier.com/apikey/manage)  
-3. **Create API Key**（Label 如 `gleaner-local`；Website 本地可用 `http://localhost`）  
-4. 将 Key 写入 `.env` 的 `ELSEVIER_API_KEY`，或单行写入 `acq/data/.elsevier_key`  
-5. 再跑 `python gleaner_cli.py status` 确认 `elsevier.ready`
-
-说明：Key 负责 API 鉴权与配额；**订阅全文**仍依赖你的机构权益。配额见 [api_key_settings](https://dev.elsevier.com/api_key_settings.html)。逐步图与 Agent 话术见 **[docs/ELSEVIER_API.md](docs/ELSEVIER_API.md)**。
-
-### 3. 配置环境（`.env` / Skill）
-
-复制 [`.env.example`](.env.example) 为 `.env`，填写：
-
-```env
-ELSEVIER_API_KEY=your_key
-CJY_USER=chaojiying_user
-CJY_PASS=chaojiying_pass
-CJY_SOFTID=your_softid
-ACQ_PROXY=http://127.0.0.1:PORT
-```
-
-- **`ACQ_PROXY` 按本机机构/校园网代理填写**（端口以客户端显示为准）。也可不写，程序会尝试读取 **Windows 系统代理**  
-- 若电脑已在校园网 / 机构 VPN 内、浏览器能直接下知网，通常**不必**再设 `ACQ_PROXY`  
-- 推荐设置 `GLEANER_ROOT` 指向本仓库根  
-- 用户 Skill：在仓库根跑 `python gleaner_cli.py install-skill`（不要手拷目录）
-
-### 4. 知网登录（首次必做）
-
-机构会话写在 `cookies.json`（已 gitignore）。**没有这份文件就不要跑 `cnki` / `cnki-list`**，冷启动下不了全文，只会空烧超级鹰。
-
-录入由 **Agent 自己跑** `python login.py`（脚本里超级鹰 9602 自动过滑块并写盘）。不要只跑 `login-hint` 就停，不要让用户手拖或从浏览器复制 cookie。不用个人知网账号。会弹出有头浏览器。仅第一次没有文件才加 `ACQ_ALLOW_COLD_LOGIN=1`。之后批次间热启动，不要裸开。
-
-```bash
-set ACQ_BROWSER_CHANNEL=msedge
-# 已有 cookies.json（续批次，推荐）
-python login.py
-# 仅首次没有 cookie：
-set ACQ_ALLOW_COLD_LOGIN=1
-python login.py
-```
-
-通过知网官方“校外访问”登录学校机构时，使用独立的机构录入模式：
+需要 Python 3.11+、Git；Windows 建议安装系统 Edge。使用独立目录：
 
 ```powershell
-$env:ACQ_BROWSER_CHANNEL='msedge'
-python login.py --institution
-```
-
-程序打开 `https://fsso.cnki.net/`，由用户选择学校并完成认证；同一浏览器中的后台首页用于确认机构身份，连续确认后自动保存并退出。默认等待 30 分钟，可用 `--timeout 3600` 调整。此模式不加载旧 cookies，登录未完成、超时或关闭登录窗口时保留原文件。成功时先将旧文件备份至已 gitignore 的 `acq/cookies/cnki/`，再原子替换 `cookies.json`；仅保存知网 cookies，不保存学校认证站 cookies。登录与后续采集应使用相同网络线路；原有 `python login.py` 热启动流程不变。
-
----
-
-## CLI 命令
-
-| 命令 | 作用 |
-|------|------|
-| `install-skill` | 把 `skill/gleaner` 注册到 Grok / Cursor / Codex，并写入 `.gleaner_root` |
-| `status` | 检查配置是否齐全，返回待办步骤（**建议先跑**） |
-| `prepare` | Agent 提供概念组 → 生成 L1–L4 专业检索式（`LY` 刊滤，不启浏览器） |
-| `cnki` | 知网全文；`--until` 串行多批直到采够；支持 `--level` + `--search-md` |
-| `cnki-list` | 知网仅题录；加 `--details` 采集 11 字段（含摘要等），不下载全文；同样支持分级 |
-| `els` | Elsevier 白名单刊检索 + 全文转 MD |
-| `score` | 查询超级鹰积分 |
-| `sources` | 各源状态与配额摘要 |
-| `login-hint` | 知网登录 / cookie 提示 |
-
-Agent 约定见 [`AGENTS.md`](AGENTS.md)：未配置完成时会引导你补齐，而不是盲目采集。
-
-**CNKI 分级**：同义发散由 Agent 完成；`prepare` 只做确定性拼式。刊表：`acq/data/cnki_journal_tiers.json`（tier1/2/3）。
-
-### 调用示例
-
-```bash
-python gleaner_cli.py status
-
-# 1) Agent 拓展概念组后建式（不启浏览器）
-python gleaner_cli.py prepare \
-  --topic "数字经济" \
-  --concept-groups '[{"name":"数字经济","keywords":["数字经济","数字化","数据要素"]}]' \
-  --year-from 2015
-
-# 2) 先题录看 TOTAL，再全文
-python gleaner_cli.py cnki-list --level L1 --search-md "<prepare 返回的 search_md>" --num 100
-# 全文串行多批直到采够：--until 目标篇数（每批 40–60 随机，批间自动 login.py）
-python gleaner_cli.py cnki --level L1 --search-md "<search_md>" --out-name demo_topic_L1 --until 200
-
-# 兼容：无分级
-python gleaner_cli.py cnki --query "数字经济" --num 10 --out-name demo_cnki
-
-python gleaner_cli.py els \
-  --query '("digital economy" OR digitalization) AND innovation' \
-  --num 10 --tier 1+2 --year-from 2020
-
-```
-
-### 只采集完整题录，不下载 PDF
-
-```powershell
-python gleaner_cli.py status
-python gleaner_cli.py cnki-list --details --query "数字经济" --num 50 --out-name demo_cnki_metadata
-```
-
-`--details` 会逐篇打开详情页补充摘要、关键词、机构、基金，不调用全文下载器，也不创建 `papers/`。支持 `--pro --query ...` 或 `--level L1 --search-md ...`。
-
-`corpus/<批次>/metadata.csv` 按以下顺序输出且仅输出 11 列：
-
-```text
-title,authors,abstract,keywords,journal,pub_date,institution,fund,cite_count,download_count,url
-```
-
-CSV 使用 UTF-8 BOM，方便 Excel 读取中文。页面未提供的字段留空；详情页加载失败会报错并保留此前逐篇保存的结果。按题名去重，同一批次重跑会重新采集并更新同名记录。
-
-`--num` 是本次题录目标数，默认 100，不使用全文的 `--until`。不指定 `--out-name` 时，完整题录批次名自动加 `_metadata`；指定时请使用题录专用目录。已有 CSV 含本模式以外的列（例如 `file_path`）会拒绝写入，避免丢失原数据。普通 7 列题录可升级为 11 列。
-
-省略 `--details` 仍只采列表页的 7 列。仅题录请求完成后即结束，不继续下载全文或转换。
-
-也可用 Skill 包装（先安装，见下方）：
-
-```powershell
-pwsh "$env:USERPROFILE\.grok\skills\gleaner\scripts\gleaner.ps1" status
-```
-
-### 安装用户 Skill
-
-**必须先有本仓库。** 用户只说「安装 skill」时，Agent 仍要先 clone，禁止只拷 `SKILL.md`。
-
-```powershell
-# 还没有仓库：
-git clone https://github.com/liuqiaodongdong/gleaner.git
-cd gleaner
+git clone --branch feature/cnki-institution-session --single-branch https://github.com/liuqiaodongdong/gleaner.git gleanera
+cd gleanera
 python -m pip install -r requirements.txt
-# 或：python skill\gleaner\scripts\bootstrap.py
-
-# 仓库已在，注册到 ~/.grok、~/.cursor、~/.codex：
-python gleaner_cli.py install-skill
-$env:GLEANER_ROOT = (Resolve-Path .).Path
+python gleanera_cli.py install-skill
+python gleanera_cli.py status
 ```
 
-`install-skill` 会在每份 Skill 副本里写入 `.gleaner_root` 指向本仓库。当前会话仍建议设 `GLEANER_ROOT`。也可用 `GLEANER_PYTHON` 指定解释器。
+技能安装到 Grok、Cursor、Codex 各自的 `skills/gleanera`，指针文件为 `.gleanera_root`。不会覆盖 `skills/gleaner`。可选环境变量为 `GLEANERA_ROOT`、`GLEANERA_PYTHON`；普通版的 `GLEANER_ROOT` 不参与机构版目录定位。
 
----
+已有旧机构版目录更新后改用 `gleanera_cli.py`，重新执行 `install-skill` 注册新名称；现有本机 Cookie、会话标记、配置和文献文件保留。
 
-当前仅启用 CNKI、Elsevier。国际线已停用；旧 `intl` 命令和 `run_intl_batch.py` 只返回停用提示，不发起采集。
+## 网络与登录
 
-## 工作原理（简）
+默认直连，不自动读取 Windows 系统代理。VPN 的系统路由仍然生效。只有确实需要代理时才设置 `ACQ_PROXY`；模板中的 `PORT` 是占位符，必须换成代理程序的真实数字端口。状态检查仅校验配置格式，网络可用性在实际访问时确认。
 
-```
-Agent / 终端
-  └── gleaner_cli.py
-        ├── CNKI  → Playwright + 代理 + 超级鹰
-        └── Elsevier → REST API + API Key
-              └── corpus/<批次>/
+```powershell
+python login.py
+python gleanera_cli.py status
 ```
 
-- 知网：无头浏览器（默认 Edge），验证码走超级鹰 9602  
-- Elsevier：Search API + Article Retrieval，全文 XML 转结构化 Markdown  
-- Elsevier 的 HTTP 请求默认绕过系统代理（`trust_env=False`），避免部分代理导致的 SSL 错误；知网取机构权限时则使用 `ACQ_PROXY` 或系统代理
-- 长任务由 CLI 子进程执行，默认不设硬超时；日志见 `corpus/*_run.log`
+`login.py` 默认打开 https://fsso.cnki.net/ ，等待用户完成学校统一认证。账号密码只在学校页面输入。首次认证不要求超级鹰，也不需要冷启动开关；`--institution` 作为旧用法仍兼容。
 
----
+机构身份、知网 Cookie、无正在显示的验证码同时确认后才保存，更新失败会恢复原会话。关闭登录窗口或等待超时会返回失败，不覆盖已有会话。
 
-## 底层脚本（调试用）
+采集过程中不自动重录或覆盖机构 Cookie。每次访问会检查机构身份；失效、身份未确认或批次无进展时停止并提示重新登录。本地 `status` 只检查会话文件与标记一致，实际有效性以访问结果为准。
 
-```bash
-python run_batch.py params.json
-python run_els_batch.py els_params.json
+采集中若出现验证码，可选填写 `CJY_USER`、`CJY_PASS`、`CJY_SOFTID` 并运行 `python gleanera_cli.py score` 检查服务。未配置时不把整个机构版标为不可用；需要验证码处理而无法完成时报告失败，保留会话。
+
+## 检索与下载
+
+```powershell
+# 仅列表题录
+python gleanera_cli.py cnki-list --query "数字经济" --num 30 --out-name demo_list
+# 包含摘要、关键词、机构、基金的 11 列题录；不下载全文
+python gleanera_cli.py cnki-list --details --query "数字经济" --num 30 --out-name demo_metadata
+# 全文：串行多批直到达到目标，批间不重新登录
+python gleanera_cli.py cnki --query "数字经济" --out-name demo_fulltext --until 30
 ```
 
-参数字段见各脚本文件头注释。统一入口仍推荐 `gleaner_cli.py`。
+支持 `prepare` 概念组、L1–L4 分级与 `--pro` 专业检索。先列表确认范围，再下载。L3/L4 扩展需用户同意。题录使用 `--num`；全文目标使用 `--until`，不要并行启动多套知网浏览器。
 
----
+输出在本目录 `corpus/<批次>`。全文附带 `papers/`；仅题录不创建全文目录。失败时读取 `corpus/*_run.log`，以实际文件数和 `until_reached` 判断完成情况。
 
-## 项目结构
+## 更新
 
-```
-gleaner_cli.py       # 统一 CLI
-skill/gleaner/       # 用户 Skill 源（install-skill 注册；scripts/bootstrap.py 无仓库时会 clone）
-acq/                 # 采集核心与各源 adapter
-  cli_support.py     # ROOT / env / 子进程 / 摘要
-  setup_check.py     # status 实现
-  sources/           # cnki 相关外：oa / scihub / els / openalex …
-run_*.py             # 各线批量入口
-browser.py / captcha.py / login.py …
-tests/
-AGENTS.md            # 给 Agent 的使用约定（Skill+CLI）
+```powershell
+git pull --ff-only origin feature/cnki-institution-session
+python -m pip install -r requirements.txt
+python gleanera_cli.py install-skill
+python gleanera_cli.py status
 ```
 
----
+`institution.ps1 login/status/list/download/test` 继续可用，有 `.venv` 时优先使用其中的 Python。普通版更新 `main`，机构版更新自己的分支；不直接把普通版命令当作机构版执行。
 
-## 故障排查
+## 本地数据
 
-| 现象 | 处理 |
-|------|------|
-| 只装了 Skill、没有 `gleaner_cli.py` | 先 `git clone` 本仓库，或跑 `skill/gleaner/scripts/bootstrap.py` |
-| `setup_incomplete` / 缺密钥 | 跑 `status`，按返回步骤配置 `.env` |
-| Elsevier Key 缺失 | **只**按 [docs/ELSEVIER_API.md](docs/ELSEVIER_API.md) 在 dev.elsevier.com 申请 |
-| 知网无权限 / 打不开 | 检查是否在机构网/VPN，或 `ACQ_PROXY` 端口是否与本机代理软件一致 |
-| 超级鹰相关报错 | 检查 `CJY_USER` / `CJY_PASS` / `CJY_SOFTID` 与积分（`score`） |
-| cookie / 登录失败 | `login-hint` → 热启动 `python login.py`（仅首次无 cookie 才 `ACQ_ALLOW_COLD_LOGIN=1`） |
-| Elsevier 0 篇 | 检索式是否过窄；机构是否订阅该刊全文（Key alone 不等于全库 PDF） |
+`.env`、`cookies.json`、`acq/cookies/`、日志、文献输出均留在本机并被 Git 忽略。删除采集线路不删除历史文献和凭据。不要把账号密码、Cookie 或学校认证页面内容提交到仓库。
 
----
-
-## License
-
-[MIT](LICENSE) © [liuqiaodongdong](https://github.com/liuqiaodongdong)
-
-本仓库代码按 MIT 许可开源：可自由使用、修改、分发（含闭源商用），保留版权与许可声明即可。
-
-### 使用声明（与许可证独立）
-
-- 请遵守知网、Elsevier 等平台服务条款，仅在合法授权（机构订阅等）范围内使用。  
-- 验证码打码、第三方镜像等能力由你自行承担合规风险；**MIT 许可代码 ≠ 授权你违反第三方 ToS 或版权法**。  
-- 本软件按「现状」提供，作者不对滥用、封禁或数据合规问题负责。
-
-Issues / PR 欢迎：https://github.com/liuqiaodongdong/gleaner
+开发测试：`python -m pytest -q`，仅收集 `tests/`，避免把旧迁移包中的测试当作当前测试。

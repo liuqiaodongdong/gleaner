@@ -187,11 +187,49 @@ _HANDLE_SELECTORS = (
 )
 
 
+def _visible_in_viewport(element, host) -> bool:
+    """排除屏幕外、透明及隐藏 iframe 中的预加载验证码。"""
+    if element is None:
+        return False
+    try:
+        page = getattr(host, "page", host)
+        viewport = page.viewport_size or page.evaluate("({width: innerWidth, height: innerHeight})")
+
+        def visible(item):
+            if not item.is_visible():
+                return False
+            box = item.bounding_box()
+            if not box or box["width"] <= 0 or box["height"] <= 0:
+                return False
+            if (box["x"] + box["width"] <= 0 or box["y"] + box["height"] <= 0
+                    or box["x"] >= viewport["width"] or box["y"] >= viewport["height"]):
+                return False
+            return bool(item.evaluate("""element => {
+                for (let node = element; node; node = node.parentElement) {
+                    const style = getComputedStyle(node);
+                    if (style.display === 'none' || style.visibility === 'hidden' || Number(style.opacity) === 0)
+                        return false;
+                }
+                return true;
+            }"""))
+
+        if not visible(element):
+            return False
+        ancestor = host
+        while getattr(ancestor, "parent_frame", None) is not None:
+            if not visible(ancestor.frame_element()):
+                return False
+            ancestor = ancestor.parent_frame
+        return True
+    except Exception:
+        return False
+
+
 def _find_first(page: Page, selectors: tuple[str, ...]):
     for sel in selectors:
         try:
             el = page.query_selector(sel)
-            if el and el.is_visible():
+            if _visible_in_viewport(el, page):
                 return el
         except Exception:
             continue
@@ -209,20 +247,11 @@ def _find_panel_in_frames(page: Page):
         for sel in _PANEL_SELECTORS:
             try:
                 el = frame.query_selector(sel)
-                if el and el.is_visible():
+                if _visible_in_viewport(el, frame):
                     return frame, el
             except Exception:
                 continue
     return page, None
-
-
-def _handle_visible(el) -> bool:
-    if not el:
-        return False
-    try:
-        return bool(el.is_visible())
-    except Exception:
-        return True
 
 
 def _find_handle_in_frames(page: Page, preferred_host=None):
@@ -246,7 +275,7 @@ def _find_handle_in_frames(page: Page, preferred_host=None):
                 el = host.query_selector(sel)
             except Exception:
                 continue
-            if _handle_visible(el):
+            if _visible_in_viewport(el, host):
                 return el
     return _find_first(page, _HANDLE_SELECTORS)
 

@@ -11,6 +11,12 @@ class _El:
     def is_visible(self):
         return self._visible
 
+    def bounding_box(self):
+        return {"x": 10, "y": 10, "width": 100, "height": 100}
+
+    def evaluate(self, _script):
+        return True
+
 
 class _Page:
     def __init__(self, url="", title="", body="", visible=None):
@@ -18,6 +24,7 @@ class _Page:
         self._title = title
         self._body = body
         self._visible = visible or {}
+        self.viewport_size = {"width": 1920, "height": 1080}
         self.frames = []
         self.main_frame = self
 
@@ -115,3 +122,31 @@ def test_wait_for_captcha_skips_without_widget(monkeypatch):
     page = _Page(url="https://kns.cnki.net/verify/x", title="安全验证")
     scraper.wait_for_captcha(page)
     assert called == []
+
+
+def test_offscreen_preloaded_captcha_does_not_trigger_solver(monkeypatch):
+    element = _El()
+    element.bounding_box = lambda: {"x": 15, "y": -999955, "width": 188, "height": 114}
+    page = _Page(visible={".tencent-captcha-dy__image-area": element})
+    assert not captcha._captcha_widget_visible(page)
+    assert not captcha.captcha_blocks_cookie_write(page)
+
+
+def test_transparent_captcha_container_is_ignored():
+    element = _El()
+    element.evaluate = lambda _script: False
+    page = _Page(visible={".tencent-captcha-dy__image-area": element})
+    assert not captcha._captcha_widget_visible(page)
+
+
+def test_captcha_in_hidden_iframe_is_ignored():
+    from types import SimpleNamespace
+    page = _Page()
+    panel = _El()
+    iframe = _El(visible=False)
+    frame = SimpleNamespace(page=page, parent_frame=page, frame_element=lambda: iframe,
+                            query_selector=lambda selector: panel if selector == ".verify-img-panel" else None)
+    page.frames = [frame]
+    assert not captcha._captcha_widget_visible(page)
+    iframe._visible = True
+    assert captcha._captcha_widget_visible(page)

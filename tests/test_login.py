@@ -161,6 +161,12 @@ def test_find_handle_in_frames_searches_iframe():
         def is_visible(self):
             return True
 
+        def bounding_box(self):
+            return {"x": 10, "y": 10, "width": 100, "height": 100}
+
+        def evaluate(self, _script):
+            return True
+
     handle = El()
 
     class Frame:
@@ -170,11 +176,14 @@ def test_find_handle_in_frames_searches_iframe():
             return None
 
     class Page:
+        viewport_size = {"width": 1920, "height": 1080}
         frames = []
 
         def query_selector(self, sel):
             return None
 
     page = Page()
-    page.frames = [page, Frame()]
+    frame = Frame()
+    frame.page = page
+    page.frames = [page, frame]
     assert captcha._find_handle_in_frames(page) is handle
